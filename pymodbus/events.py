@@ -5,27 +5,25 @@ can be any one of four types. The type is defined by bit 7
 (the high-order bit) in each byte. It may be further defined by bit 6.
 """
 # pylint: disable=missing-type-doc
-from pymodbus.exceptions import NotImplementedException, ParameterException
-from pymodbus.utilities import pack_bitstring, unpack_bitstring
+from abc import ABC, abstractmethod
+
+from pymodbus.exceptions import ParameterException
+from pymodbus.pdu.pdu import pack_bitstring, unpack_bitstring
 
 
-class ModbusEvent:
+class ModbusEvent(ABC):
     """Define modbus events."""
 
-    def encode(self):
-        """Encode the status bits to an event message.
+    @abstractmethod
+    def encode(self) -> bytes:
+        """Encode the status bits to an event message."""
 
-        :raises NotImplementedException:
-        """
-        raise NotImplementedException
-
+    @abstractmethod
     def decode(self, event):
         """Decode the event message to its status bits.
 
         :param event: The event to decode
-        :raises NotImplementedException:
         """
-        raise NotImplementedException
 
 
 class RemoteReceiveEvent(ModbusEvent):
@@ -48,11 +46,11 @@ class RemoteReceiveEvent(ModbusEvent):
         7   1
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, overrun=False, listen=False, broadcast=False):
         """Initialize a new event instance."""
-        self.overrun = kwargs.get("overrun", False)
-        self.listen = kwargs.get("listen", False)
-        self.broadcast = kwargs.get("broadcast", False)
+        self.overrun = overrun
+        self.listen = listen
+        self.broadcast = broadcast
 
     def encode(self) -> bytes:
         """Encode the status bits to an event message.
@@ -98,14 +96,14 @@ class RemoteSendEvent(ModbusEvent):
         7   0
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, read=False, slave_abort=False, slave_busy=False, slave_nak=False, write_timeout=False, listen=False):
         """Initialize a new event instance."""
-        self.read = kwargs.get("read", False)
-        self.slave_abort = kwargs.get("slave_abort", False)
-        self.slave_busy = kwargs.get("slave_busy", False)
-        self.slave_nak = kwargs.get("slave_nak", False)
-        self.write_timeout = kwargs.get("write_timeout", False)
-        self.listen = kwargs.get("listen", False)
+        self.read = read
+        self.slave_abort = slave_abort
+        self.slave_busy = slave_busy
+        self.slave_nak = slave_nak
+        self.write_timeout = write_timeout
+        self.listen = listen
 
     def encode(self):
         """Encode the status bits to an event message.

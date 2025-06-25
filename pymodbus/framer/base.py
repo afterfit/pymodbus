@@ -1,150 +1,102 @@
-"""Framer start."""
-# pylint: disable=missing-type-doc
+"""Framer implementations.
+
+The implementation is responsible for encoding/decoding requests/responses.
+
+According to the selected type of modbus frame a prefix/suffix is added/removed
+"""
 from __future__ import annotations
 
-from typing import Any
+from enum import Enum
 
-from pymodbus.factory import ClientDecoder, ServerDecoder
+from pymodbus.exceptions import ModbusIOException
 from pymodbus.logging import Log
+from pymodbus.pdu import DecodePDU, ModbusPDU
 
 
-# Unit ID, Function Code
-BYTE_ORDER = ">"
-FRAME_HEADER = "BB"
+class FramerType(str, Enum):
+    """Type of Modbus frame."""
 
-# Transaction Id, Protocol ID, Length, Unit ID, Function Code
-SOCKET_FRAME_HEADER = BYTE_ORDER + "HHH" + FRAME_HEADER
-
-# Function Code
-TLS_FRAME_HEADER = BYTE_ORDER + "B"
+    ASCII = "ascii"
+    RTU = "rtu"
+    SOCKET = "socket"
+    TLS = "tls"
 
 
-class ModbusFramer:
-    """Base Framer class."""
+class FramerBase:
+    """Intern base."""
 
-    name = ""
+    EMPTY = b''
+    MIN_SIZE = 0
 
     def __init__(
         self,
-        decoder: ClientDecoder | ServerDecoder,
-        client,
+        decoder: DecodePDU,
     ) -> None:
-        """Initialize a new instance of the framer.
-
-        :param decoder: The decoder implementation to use
-        """
+        """Initialize a ADU (framer) instance."""
         self.decoder = decoder
-        self.client = client
-        self._header: dict[str, Any] = {
-            "lrc": "0000",
-            "len": 0,
-            "uid": 0x00,
-            "tid": 0,
-            "pid": 0,
-            "crc": b"\x00\x00",
-        }
-        self._buffer = b""
 
-    def _validate_slave_id(self, slaves: list, single: bool) -> bool:
-        """Validate if the received data is valid for the client.
+    def decode(self, _data: bytes) -> tuple[int, int, int, bytes]:
+        """Decode ADU.
 
-        :param slaves: list of slave id for which the transaction is valid
-        :param single: Set to true to treat this as a single context
-        :return:
+        returns:
+            used_len (int) or 0 to read more
+            dev_id,
+            tid,
+            modbus request/response (bytes)
         """
-        if single:
-            return True
-        if 0 in slaves or 0xFF in slaves:
-            # Handle Modbus TCP slave identifier (0x00 0r 0xFF)
-            # in asynchronous requests
-            return True
-        return self._header["uid"] in slaves
+        return 0, 0, 0, self.EMPTY
 
-    def sendPacket(self, message):
-        """Send packets on the bus.
+    def encode(self, data: bytes, _dev_id: int, _tid: int) -> bytes:
+        """Encode ADU.
 
-        With 3.5char delay between frames
-        :param message: Message to be sent over the bus
-        :return:
+        returns:
+            modbus ADU (bytes)
         """
-        return self.client.send(message)
+        return data
 
-    def recvPacket(self, size):
-        """Receive packet from the bus.
+    def buildFrame(self, message: ModbusPDU) -> bytes:
+        """Create a ready to send modbus packet.
 
-        With specified len
-        :param size: Number of bytes to read
-        :return:
+        :param message: The populated request/response to send
         """
-        return self.client.recv(size)
+        data = message.function_code.to_bytes(1,'big') + message.encode()
+        frame = self.encode(data, message.dev_id, message.transaction_id)
+        return frame
 
-    def resetFrame(self):
-        """Reset the entire message frame.
-
-        This allows us to skip ovver errors that may be in the stream.
-        It is hard to know if we are simply out of sync or if there is
-        an error in the stream as we have no way to check the start or
-        end of the message (python just doesn't have the resolution to
-        check for millisecond delays).
-        """
-        Log.debug(
-            "Resetting frame - Current Frame in buffer - {}", self._buffer, ":hex"
-        )
-        self._buffer = b""
-        self._header = {
-            "lrc": "0000",
-            "crc": b"\x00\x00",
-            "len": 0,
-            "uid": 0x00,
-            "pid": 0,
-            "tid": 0,
-        }
-
-    def populateResult(self, result):
-        """Populate the modbus result header.
-
-        The serial packets do not have any header information
-        that is copied.
-
-        :param result: The response packet
-        """
-        result.slave_id = self._header.get("uid", 0)
-        result.transaction_id = self._header.get("tid", 0)
-        result.protocol_id = self._header.get("pid", 0)
-
-    def processIncomingPacket(self, data, callback, slave, **kwargs):
+    def processIncomingFrame(self, data: bytes) -> tuple[int, ModbusPDU | None]:
         """Process new packet pattern.
 
         This takes in a new request packet, adds it to the current
         packet stream, and performs framing on it. That is, checks
         for complete messages, and once found, will process all that
-        exist.  This handles the case when we read N + 1 or 1 // N
-        messages at a time instead of 1.
-
-        The processed and decoded messages are pushed to the callback
-        function to process and send.
-
-        :param data: The new packet data
-        :param callback: The function to send results to
-        :param slave: Process if slave id matches, ignore otherwise (could be a
-               list of slave ids (server) or single slave id(client/server))
-        :param kwargs:
-        :raises ModbusIOException:
+        exist.
         """
-        self._buffer += data
-        Log.debug("Processing: {}", self._buffer, ":hex")
-        if not isinstance(slave, (list, tuple)):
-            slave = [slave]
-        single = kwargs.pop("single", False)
-        self.frameProcessIncomingPacket(single, callback, slave, **kwargs)
+        used_len = 0
+        while True:
+            data_len, pdu = self._processIncomingFrame(data[used_len:])
+            used_len += data_len
+            if not data_len:
+                return used_len, None
+            if pdu:
+                return used_len, pdu
 
-    def frameProcessIncomingPacket(
-        self, _single, _callback, _slave, _tid=None, **kwargs
-    ) -> None:
-        """Process new packet pattern."""
+    def _processIncomingFrame(self, data: bytes) -> tuple[int, ModbusPDU | None]:
+        """Process new packet pattern.
 
-    def buildPacket(self, message) -> bytes:  # type:ignore[empty-body]
-        """Create a ready to send modbus packet.
-
-        :param message: The populated request/response to send
+        This takes in a new request packet, adds it to the current
+        packet stream, and performs framing on it. That is, checks
+        for complete messages, and once found, will process all that
+        exist.
         """
+        Log.debug("Processing: {}", data, ":hex")
+        if not data:
+            return 0, None
+        used_len, dev_id, tid, frame_data = self.decode(data)
+        if not frame_data:
+            return used_len, None
+        if (result := self.decoder.decode(frame_data)) is None:
+            raise ModbusIOException("Unable to decode request")
+        result.dev_id = dev_id
+        result.transaction_id = tid
+        Log.debug("Frame advanced, resetting header!!")
+        return used_len, result

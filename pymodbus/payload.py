@@ -11,19 +11,18 @@ __all__ = [
     "BinaryPayloadDecoder",
 ]
 
+from array import array
+
 # pylint: disable=missing-type-doc
 from struct import pack, unpack
 
 from pymodbus.constants import Endian
 from pymodbus.exceptions import ParameterException
 from pymodbus.logging import Log
-from pymodbus.utilities import (
+from pymodbus.pdu.pdu import (
     pack_bitstring,
     unpack_bitstring,
 )
-
-
-WC = {"b": 1, "h": 2, "e": 2, "i": 4, "l": 4, "q": 8, "f": 4, "d": 8}
 
 
 class BinaryPayloadBuilder:
@@ -39,6 +38,15 @@ class BinaryPayloadBuilder:
         payload = builder.build()
     """
 
+    @classmethod
+    def deprecate(cls):
+        """Log warning."""
+        Log.warning(
+            "BinaryPayloadBuilder is deprecated and will be removed in v3.9.0 !\n"
+            "Please use \"client.convert_from_registers()\" or \"client.convert_to_registers\"\n"
+            "See documentation: \"https://pymodbus.readthedocs.io/en/latest/source/client.html#pymodbus.client.mixin.ModbusClientMixin.convert_from_registers\""
+        )
+
     def __init__(
         self, payload=None, byteorder=Endian.LITTLE, wordorder=Endian.BIG, repack=False
     ):
@@ -49,6 +57,7 @@ class BinaryPayloadBuilder:
         :param wordorder: The endianness of the word (when wordcount is >= 2)
         :param repack: Repack the provided payload based on BO
         """
+        # self.deprecate()
         self._payload = payload or []
         self._byteorder = byteorder
         self._wordorder = wordorder
@@ -69,18 +78,18 @@ class BinaryPayloadBuilder:
         :return:
         """
         value = pack(f"!{fstring}", value)
-        wordorder = WC.get(fstring.lower()) // 2  # type: ignore[operator]
-        upperbyte = f"!{wordorder}H"
-        payload = unpack(upperbyte, value)
-
-        if self._wordorder == Endian.LITTLE:
-            payload = payload[::-1]
-
-        fstring = self._byteorder + "H"
-        return b"".join(pack(fstring, word) for word in payload)
+        if Endian.LITTLE in {self._byteorder, self._wordorder}:
+            value = array("H", value)
+            if self._byteorder == Endian.LITTLE:
+                value.byteswap()
+            if self._wordorder == Endian.LITTLE:
+                value.reverse()
+            value = value.tobytes()
+        return value
 
     def encode(self) -> bytes:
         """Get the payload buffer encoded in bytes."""
+        # self.deprecate()
         return b"".join(self._payload)
 
     def __str__(self) -> str:
@@ -92,6 +101,7 @@ class BinaryPayloadBuilder:
 
     def reset(self) -> None:
         """Reset the payload buffer."""
+        # self.deprecate()
         self._payload = []
 
     def to_registers(self):
@@ -99,6 +109,7 @@ class BinaryPayloadBuilder:
 
         :returns: The register layout to use as a block
         """
+        # self.deprecate()
         # fstring = self._byteorder+"H"
         fstring = "!H"
         payload = self.build()
@@ -114,6 +125,7 @@ class BinaryPayloadBuilder:
 
         :returns: The coil layout to use as a block
         """
+        # self.deprecate()
         payload = self.to_registers()
         coils = [bool(int(bit)) for reg in payload for bit in format(reg, "016b")]
         return coils
@@ -126,6 +138,7 @@ class BinaryPayloadBuilder:
 
         :returns: The payload buffer as a list
         """
+        # self.deprecate()
         buffer = self.encode()
         length = len(buffer)
         buffer += b"\x00" * (length % 2)
@@ -140,6 +153,7 @@ class BinaryPayloadBuilder:
 
         :param values: The value to add to the buffer
         """
+        # self.deprecate()
         value = pack_bitstring(values)
         self._payload.append(value)
 
@@ -148,6 +162,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = self._byteorder + "B"
         self._payload.append(pack(fstring, value))
 
@@ -156,6 +171,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = self._byteorder + "H"
         self._payload.append(pack(fstring, value))
 
@@ -164,6 +180,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "I"
         # fstring = self._byteorder + "I"
         p_string = self._pack_words(fstring, value)
@@ -174,6 +191,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "Q"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -183,6 +201,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = self._byteorder + "b"
         self._payload.append(pack(fstring, value))
 
@@ -191,6 +210,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = self._byteorder + "h"
         self._payload.append(pack(fstring, value))
 
@@ -199,6 +219,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "i"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -208,6 +229,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "q"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -217,6 +239,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "e"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -226,6 +249,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "f"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -235,6 +259,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = "d"
         p_string = self._pack_words(fstring, value)
         self._payload.append(p_string)
@@ -244,6 +269,7 @@ class BinaryPayloadBuilder:
 
         :param value: The value to add to the buffer
         """
+        # self.deprecate()
         fstring = self._byteorder + str(len(value)) + "s"
         self._payload.append(pack(fstring, value.encode()))
 
@@ -260,6 +286,15 @@ class BinaryPayloadDecoder:
         second  = decoder.decode_16bit_uint()
     """
 
+    @classmethod
+    def deprecate(cls):
+        """Log warning."""
+        Log.warning(
+            "BinaryPayloadDecoder is deprecated and will be removed in v3.9.0 !\n"
+            "Please use \"client.convert_from_registers()\" or \"client.convert_to_registers\"\n"
+            "See documentation: \"https://pymodbus.readthedocs.io/en/latest/source/client.html#pymodbus.client.mixin.ModbusClientMixin.convert_from_registers\""
+        )
+
     def __init__(self, payload, byteorder=Endian.LITTLE, wordorder=Endian.BIG):
         """Initialize a new payload decoder.
 
@@ -267,10 +302,12 @@ class BinaryPayloadDecoder:
         :param byteorder: The endianness of the payload
         :param wordorder: The endianness of the word (when wordcount is >= 2)
         """
+        # self.deprecate()
         self._payload = payload
         self._pointer = 0x00
         self._byteorder = byteorder
         self._wordorder = wordorder
+
 
     @classmethod
     def fromRegisters(
@@ -293,15 +330,17 @@ class BinaryPayloadDecoder:
         :returns: An initialized PayloadDecoder
         :raises ParameterException:
         """
+        cls.deprecate()
         Log.debug("{}", registers)
         if isinstance(registers, list):  # repack into flat binary
-            payload = b"".join(pack("!H", x) for x in registers)
+            payload = pack(f"!{len(registers)}H", *registers)
             return cls(payload, byteorder, wordorder)
         raise ParameterException("Invalid collection of registers supplied")
 
     @classmethod
     def bit_chunks(cls, coils, size=8):
         """Return bit chunks."""
+        cls.deprecate()
         chunks = [coils[i : i + size] for i in range(0, len(coils), size)]
         return chunks
 
@@ -313,6 +352,7 @@ class BinaryPayloadDecoder:
         _wordorder=Endian.BIG,
     ):
         """Initialize a payload decoder with the result of reading of coils."""
+        cls.deprecate()
         if isinstance(coils, list):
             payload = b""
             if padding := len(coils) % 8:  # Pad zeros
@@ -324,7 +364,7 @@ class BinaryPayloadDecoder:
             return cls(payload, byteorder)
         raise ParameterException("Invalid collection of coils supplied")
 
-    def _unpack_words(self, fstring: str, handle) -> bytes:
+    def _unpack_words(self, handle) -> bytes:
         """Unpack words based on the word order and byte order.
 
         # ---------------------------------------------- #
@@ -332,27 +372,25 @@ class BinaryPayloadDecoder:
         # Change Word order if little endian word order  #
         # Pack values back based on correct byte order   #
         # ---------------------------------------------- #
-        :param fstring:
-        :param handle: Value to be unpacked
-        :return:
         """
-        wc_value = WC.get(fstring.lower()) // 2  # type: ignore[operator]
-        handle = unpack(f"!{wc_value}H", handle)
-        if self._wordorder == Endian.LITTLE:
-            handle = list(reversed(handle))
-
-        # Repack as unsigned Integer
-        handle = [pack(self._byteorder + "H", p) for p in handle]
+        if Endian.LITTLE in {self._byteorder, self._wordorder}:
+            handle = array("H", handle)
+            if self._byteorder == Endian.LITTLE:
+                handle.byteswap()
+            if self._wordorder == Endian.LITTLE:
+                handle.reverse()
+            handle = handle.tobytes()
         Log.debug("handle: {}", handle)
-        handle = b"".join(handle)
         return handle
 
     def reset(self):
         """Reset the decoder pointer back to the start."""
+        # self.deprecate()
         self._pointer = 0x00
 
     def decode_8bit_uint(self):
         """Decode a 8 bit unsigned int from the buffer."""
+        # self.deprecate()
         self._pointer += 1
         fstring = self._byteorder + "B"
         handle = self._payload[self._pointer - 1 : self._pointer]
@@ -360,6 +398,7 @@ class BinaryPayloadDecoder:
 
     def decode_bits(self, package_len=1):
         """Decode a byte worth of bits from the buffer."""
+        # self.deprecate()
         self._pointer += package_len
         # fstring = self._endian + "B"
         handle = self._payload[self._pointer - 1 : self._pointer]
@@ -367,6 +406,7 @@ class BinaryPayloadDecoder:
 
     def decode_16bit_uint(self):
         """Decode a 16 bit unsigned int from the buffer."""
+        # self.deprecate()
         self._pointer += 2
         fstring = self._byteorder + "H"
         handle = self._payload[self._pointer - 2 : self._pointer]
@@ -374,22 +414,25 @@ class BinaryPayloadDecoder:
 
     def decode_32bit_uint(self):
         """Decode a 32 bit unsigned int from the buffer."""
+        # self.deprecate()
         self._pointer += 4
         fstring = "I"
         handle = self._payload[self._pointer - 4 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_64bit_uint(self):
         """Decode a 64 bit unsigned int from the buffer."""
+        # self.deprecate()
         self._pointer += 8
         fstring = "Q"
         handle = self._payload[self._pointer - 8 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_8bit_int(self):
         """Decode a 8 bit signed int from the buffer."""
+        # self.deprecate()
         self._pointer += 1
         fstring = self._byteorder + "b"
         handle = self._payload[self._pointer - 1 : self._pointer]
@@ -397,6 +440,7 @@ class BinaryPayloadDecoder:
 
     def decode_16bit_int(self):
         """Decode a 16 bit signed int from the buffer."""
+        # self.deprecate()
         self._pointer += 2
         fstring = self._byteorder + "h"
         handle = self._payload[self._pointer - 2 : self._pointer]
@@ -404,42 +448,47 @@ class BinaryPayloadDecoder:
 
     def decode_32bit_int(self):
         """Decode a 32 bit signed int from the buffer."""
+        # self.deprecate()
         self._pointer += 4
         fstring = "i"
         handle = self._payload[self._pointer - 4 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_64bit_int(self):
         """Decode a 64 bit signed int from the buffer."""
+        # self.deprecate()
         self._pointer += 8
         fstring = "q"
         handle = self._payload[self._pointer - 8 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_16bit_float(self):
         """Decode a 16 bit float from the buffer."""
+        # self.deprecate()
         self._pointer += 2
         fstring = "e"
         handle = self._payload[self._pointer - 2 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_32bit_float(self):
         """Decode a 32 bit float from the buffer."""
+        # self.deprecate()
         self._pointer += 4
         fstring = "f"
         handle = self._payload[self._pointer - 4 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_64bit_float(self):
         """Decode a 64 bit float(double) from the buffer."""
+        # self.deprecate()
         self._pointer += 8
         fstring = "d"
         handle = self._payload[self._pointer - 8 : self._pointer]
-        handle = self._unpack_words(fstring, handle)
+        handle = self._unpack_words(handle)
         return unpack("!" + fstring, handle)[0]
 
     def decode_string(self, size=1):
@@ -447,6 +496,7 @@ class BinaryPayloadDecoder:
 
         :param size: The size of the string to decode
         """
+        # self.deprecate()
         self._pointer += size
         return self._payload[self._pointer - size : self._pointer]
 
@@ -455,4 +505,5 @@ class BinaryPayloadDecoder:
 
         :param nbytes: The number of bytes to skip
         """
+        # self.deprecate()
         self._pointer += nbytes

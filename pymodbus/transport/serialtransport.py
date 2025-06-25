@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import sys
 
 
 with contextlib.suppress(ImportError):
@@ -13,15 +14,21 @@ with contextlib.suppress(ImportError):
 class SerialTransport(asyncio.Transport):
     """An asyncio serial transport."""
 
-    force_poll: bool = False
+    force_poll: bool = os.name == "nt"
 
-    def __init__(self, loop, protocol, rs485_settings, *args, **kwargs) -> None:
+    def __init__(self, loop, protocol, url, baudrate, bytesize, parity, stopbits, timeout, rs485_settings) -> None:
         """Initialize."""
         super().__init__()
+        if "serial" not in sys.modules:
+            raise RuntimeError(
+                "Serial client requires pyserial "
+                'Please install with "pip install pyserial" and try again.'
+            )
         self.async_loop = loop
         self.intern_protocol: asyncio.BaseProtocol = protocol
-        # self.sync_serial = serial.serial_for_url(*args, **kwargs)
-        self.sync_serial = self._serial_for_args(rs485_settings, *args, **kwargs)
+        self.sync_serial = serial.serial_for_url(url, exclusive=True,
+            baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=timeout, rs485_settings=rs485_settings
+)
         self.intern_write_buffer: list[bytes] = []
         self.poll_task: asyncio.Task | None = None
         self._poll_wait_time = 0.0005
@@ -40,7 +47,7 @@ class SerialTransport(asyncio.Transport):
 
     def setup(self) -> None:
         """Prepare to read/write."""
-        if os.name == "nt" or self.force_poll:
+        if self.force_poll:
             self.poll_task = asyncio.create_task(self.polling_task())
             self.poll_task.set_name("SerialTransport poll")
         else:
@@ -57,6 +64,7 @@ class SerialTransport(asyncio.Transport):
             self.poll_task = None
         else:
             self.async_loop.remove_reader(self.sync_serial.fileno())
+            self.async_loop.remove_writer(self.sync_serial.fileno())
         self.sync_serial.close()
         self.sync_serial = None  # type: ignore[assignment]
         if exc:
@@ -66,7 +74,7 @@ class SerialTransport(asyncio.Transport):
     def write(self, data) -> None:
         """Write some data to the transport."""
         self.intern_write_buffer.append(data)
-        if not self.poll_task:
+        if not self.force_poll:
             self.async_loop.add_writer(self.sync_serial.fileno(), self.intern_write_ready)
 
     def flush(self) -> None:
@@ -164,11 +172,21 @@ class SerialTransport(asyncio.Transport):
                 self.intern_read_ready()
 
 async def create_serial_connection(
-    loop, protocol_factory, rs485_settings, *args, **kwargs
+    loop, protocol_factory, url,
+    baudrate=None,
+    bytesize=None,
+    parity=None,
+    stopbits=None,
+    timeout=None,
+    rs485_settings=None,
 ) -> tuple[asyncio.Transport, asyncio.BaseProtocol]:
     """Create a connection to a new serial port instance."""
     protocol = protocol_factory()
-    # transport = SerialTransport(loop, protocol, *args, **kwargs)
-    transport = SerialTransport(loop, protocol, rs485_settings, *args, **kwargs)
+    transport = SerialTransport(loop, protocol, url,
+                    baudrate,
+                    bytesize,
+                    parity,
+                    stopbits,
+                    timeout)
     loop.call_soon(transport.setup)
     return transport, protocol

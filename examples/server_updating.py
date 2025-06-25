@@ -7,7 +7,7 @@ a task that runs continuously alongside the server and updates values.
 usage::
 
     server_updating.py [-h] [--comm {tcp,udp,serial,tls}]
-                       [--framer {ascii,binary,rtu,socket,tls}]
+                       [--framer {ascii,rtu,socket,tls}]
                        [--log {critical,error,warning,info,debug}]
                        [--port PORT] [--store {sequential,sparse,factory,none}]
                        [--slaves SLAVES]
@@ -16,7 +16,7 @@ usage::
         show this help message and exit
     -c, --comm {tcp,udp,serial,tls}
         set communication, default is tcp
-    -f, --framer {ascii,binary,rtu,socket,tls}
+    -f, --framer {ascii,rtu,socket,tls}
         set framer, default depends on --comm
     -l, --log {critical,error,warning,info,debug}
         set log level, default is info
@@ -33,8 +33,16 @@ The corresponding client can be started as:
 """
 import asyncio
 import logging
+import sys
 
-import server_async
+
+try:
+    import server_async  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
@@ -93,8 +101,8 @@ def setup_updating_server(cmdline=None):
 
     # Continuing, use a sequential block without gaps.
     datablock = ModbusSequentialDataBlock(0x00, [17] * 100)
-    context = ModbusSlaveContext(di=datablock, co=datablock, hr=datablock, ir=datablock)
-    context = ModbusServerContext(slaves=context, single=True)
+    slavecontext = ModbusSlaveContext(di=datablock, co=datablock, hr=datablock, ir=datablock)
+    context = ModbusServerContext(slaves=slavecontext, single=True)
     return server_async.setup_server(
         description="Run asynchronous server.", context=context, cmdline=cmdline
     )

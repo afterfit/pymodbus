@@ -10,28 +10,38 @@ Pymodbus version 3 family
 -------------------------
 Thanks to
 
+- ahcm-dev
 - AKJ7
 - Alex
 - Alex Ruddick
 - Alexander Lanin
 - Alexandre CUER
+- alexis-care
 - Alois Hockenschlohe
+- Andy Walker
 - Arjan
 - André Srinivasan
+- andrew-harness
 - banana-sun
 - Blaise Thompson
+- Breina
 - CapraTheBest
 - cgernert
 - corollaries
 - Chandler Riehm
 - Chris Hung
 - Christian Krause
+- Christian Pfisterer
+- daanwtb
+- Daniel Rauber
 - dhoomakethu
 - doelki
 - DominicDataP
 - Dominique Martinet
 - Dries
 - duc996
+- efdx
+- Esco441-91
 - Farzad Panahi
 - Fredo70
 - Gao Fang
@@ -43,35 +53,47 @@ Thanks to
 - Jakob Ruhe
 - Jakob Schlyter
 - James Braza
+- James Cameron
 - James Hilliard
 - jan iversen
 - Jerome Velociter
 - Joe Burmeister
 - John Miko
 - Jonathan Reichelt Gjertsen
+- JorisW
 - julian
 - Justin Standring
 - Kenny Johansson
-- Matthias Straka
+- Kürşat Aktaş
 - laund
 - Logan Gunthorpe
 - Marko Luther
-- Logan Gunthorpe
-- Marko Luther
+- Martyy
+- Máté Szabó
 - Matthias Straka
+- Matthias Urlichs
+- Maxime LEURENT
+- Michel F
 - Mickaël Schoentgen
 - Pavel Kostromitinov
 - peufeu2
 - Philip Couling
+- Philip Jones
+- Robin Trabert
+- Qi Li
 - Sebastian Machuca
 - Sefa Keleş
 - Steffen Beyer
+- sumguytho
+- Szewcson
 - Thijs W
 - Totally a booplicate
 - WouterTuinstra
 - wriswith
+- Yash Jani
+- Yohrog
 - yyokusa
-
+- zaid bin saeed
 
 Pymodbus version 2 family
 -------------------------

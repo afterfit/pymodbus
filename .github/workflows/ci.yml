@@ -4,31 +4,43 @@ on:
     branches:
       - dev
       - master
-      - dev_*
+      - wait_next_API
     tags:
       - v*
   pull_request:
     branches:
       - dev
+      - wait_next_api
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     # Sunday at 02:10 UTC.
     - cron: '10 2 * * 0'
   workflow_dispatch:
 
 jobs:
+  faildraft:
+    name: fail draft
+    if: github.event.pull_request.draft == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: fail draft
+        run: |
+          exit 1
+
   testing:
     name: ${{ matrix.os }} - ${{ matrix.python }}
+    if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python: ['3.10', '3.11', '3.12', "3.13.0"]
         include:
-          - python: '3.8'
+          - python: '3.10'
             run_lint: true
-          - python: '3.12'
+          - python: '3.13.0'
             run_doc: true
             run_lint: true
           - os: macos-latest
@@ -40,10 +52,10 @@ jobs:
 
     steps:
       - name: Checkout repo from github
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5.0.0
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: ${{ matrix.python }}
 
@@ -61,7 +73,7 @@ jobs:
 
       - name: Restore base Python virtual environment
         id: cache-venv
-        uses: actions/cache@v4.0.1
+        uses: actions/cache@v4.2.0
         with:
           path: ${{ env.VIRTUAL_ENV }}
           key: >-
@@ -93,31 +105,32 @@ jobs:
       - name: mypy
         if: matrix.run_lint == true
         run: |
-          mypy pymodbus
+          mypy pymodbus examples
 
       - name: ruff
         if: matrix.run_lint == true
         run: |
-          ruff .
+          ruff check .
 
       - name: pytest
-        if: ${{ (matrix.os != 'ubuntu-latest') || (matrix.python != '3.12') }}
+        if: ${{ (matrix.os != 'ubuntu-latest') || (matrix.python != '3.13') }}
         run: |
           env
           pytest
 
       - name: pytest coverage
-        if: ${{ (matrix.os == 'ubuntu-latest') && (matrix.python == '3.12')  }}
+        if: ${{ (matrix.os == 'ubuntu-latest') && (matrix.python == '3.13')  }}
         run: |
           env
           pytest --cov
 
   analyze:
     name: Analyze Python
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4.2.2
 
       - uses: github/codeql-action/init@v3
         with:

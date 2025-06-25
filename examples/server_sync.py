@@ -6,7 +6,7 @@ An example of a single threaded synchronous server.
 usage::
 
     server_sync.py [-h] [--comm {tcp,udp,serial,tls}]
-                   [--framer {ascii,binary,rtu,socket,tls}]
+                   [--framer {ascii,rtu,socket,tls}]
                    [--log {critical,error,warning,info,debug}]
                    [--port PORT] [--store {sequential,sparse,factory,none}]
                    [--slaves SLAVES]
@@ -15,7 +15,7 @@ usage::
         show this help message and exit
     -c, --comm {tcp,udp,serial,tls}
         set communication, default is tcp
-    -f, --framer {ascii,binary,rtu,socket,tls}
+    -f, --framer {ascii,rtu,socket,tls}
         set framer, default depends on --comm
     -l, --log {critical,error,warning,info,debug}
         set log level, default is info
@@ -35,9 +35,17 @@ is just a thin cover on top of the async server and is in some aspects
 a lot slower.
 """
 import logging
+import sys
 
-import helper
-import server_async
+
+try:
+    import helper  # type: ignore[import-not-found]
+    import server_async  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 # --------------------------------------------------------------------------- #
 # import the various client implementations
@@ -54,40 +62,38 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel("DEBUG")
 
 
-def run_sync_server(args):
+def run_sync_server(args) -> None:
     """Run server."""
     txt = f"### start SYNC server, listening on {args.port} - {args.comm}"
     _logger.info(txt)
     if args.comm == "tcp":
         address = ("", args.port) if args.port else None
-        server = StartTcpServer(
+        StartTcpServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
-            # TBD host=
-            # TBD port=
             address=address,  # listen address
             # custom_functions=[],  # allow custom handling
             framer=args.framer,  # The framer strategy to use
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
     elif args.comm == "udp":
         address = ("127.0.0.1", args.port) if args.port else None
-        server = StartUdpServer(
+        StartUdpServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
             address=address,  # listen address
             # custom_functions=[],  # allow custom handling
             framer=args.framer,  # The framer strategy to use
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
     elif args.comm == "serial":
         # socat -d -d PTY,link=/tmp/ptyp0,raw,echo=0,ispeed=9600
         #             PTY,link=/tmp/ttyp0,raw,echo=0,ospeed=9600
-        server = StartSerialServer(
+        StartSerialServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
             # timeout=1,  # waiting time for request to complete
@@ -100,14 +106,12 @@ def run_sync_server(args):
             baudrate=args.baudrate,  # The baud rate to use for the serial device
             # handle_local_echo=False,  # Handle local echo of the USB-to-RS485 adaptor
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
-            # strict=True,  # use strict timing, t1.5 for Modbus RTU
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
         )
     elif args.comm == "tls":
         address = ("", args.port) if args.port else None
-        server = StartTlsServer(
+        StartTlsServer(
             context=args.context,  # Data storage
-            host="localhost",  # define tcp address where to connect to.
             # port=port,  # on which port
             identity=args.identity,  # server identify
             # custom_functions=[],  # allow custom handling
@@ -122,17 +126,16 @@ def run_sync_server(args):
             ),  # The key file path for TLS (used if sslctx is None)
             # password=None,  # The password for for decrypting the private key file
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
-    return server
 
 
-def sync_helper():
+def sync_helper() -> None:
     """Combine setup and run."""
     run_args = server_async.setup_server(description="Run synchronous server.")
-    server = run_sync_server(run_args)
-    server.shutdown()
+    run_sync_server(run_args)
+    # server.shutdown()
 
 
 if __name__ == "__main__":

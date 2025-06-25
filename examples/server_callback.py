@@ -6,8 +6,16 @@ when a value is written to it.
 """
 import asyncio
 import logging
+import sys
 
-import server_async
+
+try:
+    import server_async  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
@@ -44,17 +52,10 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
         _logger.debug(txt)
         return result
 
-    def validate(self, address, count=1):
-        """Check to see if the request is in range."""
-        result = super().validate(address, count=count)
-        txt = f"Callback from validate with address {address}, count {count}, data {result}"
-        _logger.debug(txt)
-        return result
-
 
 async def run_callback_server(cmdline=None):
     """Define datastore callback for server and do setup."""
-    queue = asyncio.Queue()
+    queue: asyncio.Queue = asyncio.Queue()
     block = CallbackDataBlock(queue, 0x00, [17] * 100)
     block.setValues(1, 15)
     store = ModbusSlaveContext(di=block, co=block, hr=block, ir=block)

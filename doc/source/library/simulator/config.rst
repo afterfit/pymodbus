@@ -25,7 +25,7 @@ each containing a list of servers/devices
     }
 
 You can define as many server and devices as you like, when starting
-:ref:`pymodbus.simulator` you select one server and one device to simulate.
+:ref:`pymodbus.simulator (v3.x)` you select one server and one device to simulate.
 
 A entry in “device_list” correspond to the dict you can use as parameter
 to datastore_simulator is you want to construct your own simulator.
@@ -63,11 +63,13 @@ The entry “comm” allows the following values:
 
 The entry “framer” allows the following values:
 
-- “ascii” to use :class:`pymodbus.framer.ascii_framer.ModbusAsciiFramer`,
-- "binary to use :class:`pymodbus.framer.ascii_framer.ModbusBinaryFramer`,
-- “rtu” to use :class:`pymodbus.framer.ascii_framer.ModbusRtuFramer`,
-- “tls” to use :class:`pymodbus.framer.ascii_framer.ModbusTlsFramer`,
-- “socket” to use :class:`pymodbus.framer.ascii_framer.ModbusSocketFramer`.
+- “ascii” to use :class:`pymodbus.framer.FramerAscii`,
+- “rtu” to use :class:`pymodbus.framer.FramerRTU`,
+- “socket” to use :class:`pymodbus.framer.FramerSocket`.
+- “tls” to use :class:`pymodbus.framer.FramerTLS`,
+
+Optional entry "device_id" will limit server to only accept a single id. If
+not set, the server will accept all device id.
 
 .. warning::
 
@@ -289,8 +291,8 @@ In case of **"increment"**, the counter is reset to the minimum value, if the ma
 
 .. code-block::
 
-    {"addr": 9, "value": 7, "action": "random", "kwargs": {"minval": 0, "maxval": 12} },
-    {"addr": 10, "value": 100, "action": "increment", "kwargs": {"minval": 50} }
+    {"addr": 9, "value": 7, "action": "random", "parameters": {"minval": 0, "maxval": 12} },
+    {"addr": 10, "value": 100, "action": "increment", "parameters": {"minval": 50} }
 
 
 Invalid section

@@ -79,11 +79,11 @@ Source: :github:`examples/client_calls.py`
     :noindex:
 
 
-Client custom message
-^^^^^^^^^^^^^^^^^^^^^
-Source: :github:`examples/client_custom_msg.py`
+Custom message
+^^^^^^^^^^^^^^
+Source: :github:`examples/custom_msg.py`
 
-.. automodule:: examples.client_custom_msg
+.. automodule:: examples.custom_msg
     :undoc-members:
     :noindex:
 
@@ -177,15 +177,6 @@ Source: :github:`examples/datastore_simulator_share.py`
     :noindex:
 
 
-Message generator
-^^^^^^^^^^^^^^^^^
-Source: :github:`examples/message_generator.py`
-
-.. automodule:: examples.message_generator
-    :undoc-members:
-    :noindex:
-
-
 Message Parser
 ^^^^^^^^^^^^^^
 Source: :github:`examples/message_parser.py`
@@ -219,28 +210,10 @@ Source: :github:`examples/contrib/solar.py`
     :noindex:
 
 
-Redis datastore
-^^^^^^^^^^^^^^^
-Source: :github:`examples/contrib/redis_datastore.py`
-
-.. automodule:: examples.contrib.redis_datastore
-    :undoc-members:
-    :noindex:
-
-
 Serial Forwarder
 ^^^^^^^^^^^^^^^^
 Source: :github:`examples/contrib/serial_forwarder.py`
 
 .. automodule:: examples.contrib.serial_forwarder
-    :undoc-members:
-    :noindex:
-
-
-Sqlalchemy datastore
-^^^^^^^^^^^^^^^^^^^^
-Source: :github:`examples/contrib/sql_datastore.py`
-
-.. automodule:: examples.contrib.sql_datastore
     :undoc-members:
     :noindex:

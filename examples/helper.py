@@ -4,9 +4,12 @@ Contains common functions get get_command_line() to avoid duplicating
 code that are not relevant for the code as such, like e.g.
 get_command_line
 """
+from __future__ import annotations
+
 import argparse
 import logging
 import os
+from typing import Any
 
 from pymodbus import pymodbus_apply_logging_config
 
@@ -14,13 +17,13 @@ from pymodbus import pymodbus_apply_logging_config
 _logger = logging.getLogger(__file__)
 
 
-def get_commandline(server=False, description=None, extras=None, cmdline=None):
-    """Read and validate command line arguments."""
+def get_commandline(server: bool = False, description: str | None = None, extras: Any = None, cmdline: str | None = None):
+    """Read and check command line arguments."""
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "-c",
         "--comm",
-        choices=["tcp", "udp", "serial", "tls"],
+        choices=["tcp", "udp", "serial", "tls", "unknown"],
         help="set communication, default is tcp",
         dest="comm",
         default="tcp",
@@ -29,7 +32,7 @@ def get_commandline(server=False, description=None, extras=None, cmdline=None):
     parser.add_argument(
         "-f",
         "--framer",
-        choices=["ascii", "binary", "rtu", "socket", "tls"],
+        choices=["ascii", "rtu", "socket", "tls"],
         help="set framer, default depends on --comm",
         dest="framer",
         type=str,
@@ -76,7 +79,6 @@ def get_commandline(server=False, description=None, extras=None, cmdline=None):
             help="set number of slaves, default is 0 (any)",
             default=0,
             type=int,
-            nargs="+",
         )
         parser.add_argument(
             "--context",
@@ -96,7 +98,7 @@ def get_commandline(server=False, description=None, extras=None, cmdline=None):
     args = parser.parse_args(cmdline)
 
     # set defaults
-    comm_defaults = {
+    comm_defaults: dict[str, list[int | str]] = {
         "tcp": ["socket", 5020],
         "udp": ["socket", 5020],
         "serial": ["rtu", "/dev/ptyp0"],

@@ -8,9 +8,9 @@ from __future__ import annotations
 
 
 __all__ = [
-    "ModbusPlusStatistics",
-    "ModbusDeviceIdentification",
     "DeviceInformationFactory",
+    "ModbusDeviceIdentification",
+    "ModbusPlusStatistics",
 ]
 
 import struct
@@ -233,7 +233,7 @@ class ModbusDeviceIdentification:
 
 
 class DeviceInformationFactory:  # pylint: disable=too-few-public-methods
-    """This is a helper factory.
+    """This is a helper.
 
     That really just hides
     some of the complexity of processing the device information
@@ -323,30 +323,27 @@ class ModbusCountersHandler:
     0x0D  3  Return Slave Exception Error Count
 
              Quantity of MODBUS exception error detected by the remote device
-             since its last restart, clear counters operation, or power-up.  It
-             comprises also the error detected in broadcast messages even if an
-             exception message is not returned in this case.
+             since its last restart, clear counters operation, or power-up.
              Exception errors are described and listed in "MODBUS Application
              Protocol Specification" document.
 
     0xOE  4  Return Slave Message Count
 
-             Quantity of messages addressed to the remote device,  including
-             broadcast messages, that the remote device has processed since its
-             last restart, clear counters operation, or power-up.
+             Quantity of messages addressed to the remote device that the remote
+             device has processed since its last restart, clear counters operation,
+             or power-up.
 
     0x0F  5  Return Slave No Response Count
 
              Quantity of messages received by the remote device for which it
              returned no response (neither a normal response nor an exception
              response), since its last restart, clear counters operation, or
-             power-up. Then, this counter counts the number of broadcast
-             messages it has received.
+             power-up.
 
     0x10  6  Return Slave NAK Count
 
              Quantity of messages addressed to the remote device for which it
-             returned a Negative Acknowledge (NAK) exception response, since
+             returned a Negative ACKNOWLEDGE (NAK) exception response, since
              its last restart, clear counters operation, or power-up. Exception
              responses are described and listed in "MODBUS Application Protocol
              Specification" document.
@@ -370,7 +367,7 @@ class ModbusCountersHandler:
     .. note:: I threw the event counter in here for convenience
     """
 
-    __data = {i: 0x0000 for i in range(9)}
+    __data = dict.fromkeys(range(9), 0x00)
     __names = [
         "BusMessage",
         "BusCommunicationError",
@@ -378,7 +375,7 @@ class ModbusCountersHandler:
         "SlaveMessage",
         "SlaveNoResponse",
         "SlaveNAK",
-        "SlaveBusy",
+        "SLAVE_BUSY",
         "BusCharacterOverrun",
     ]
 
@@ -404,7 +401,7 @@ class ModbusCountersHandler:
 
     def reset(self):
         """Clear all of the system counters."""
-        self.__data = {i: 0x0000 for i in range(9)}
+        self.__data = dict.fromkeys(range(9), 0x00)
 
     def summary(self):
         """Return a summary of the counters current status.
@@ -428,7 +425,7 @@ class ModbusCountersHandler:
     SlaveMessage = dict_property(lambda s: s.__data, 3)  # pylint: disable=protected-access
     SlaveNoResponse = dict_property(lambda s: s.__data, 4)  # pylint: disable=protected-access
     SlaveNAK = dict_property(lambda s: s.__data, 5)  # pylint: disable=protected-access
-    SlaveBusy = dict_property(lambda s: s.__data, 6)  # pylint: disable=protected-access
+    SLAVE_BUSY = dict_property(lambda s: s.__data, 6)  # pylint: disable=protected-access
     BusCharacterOverrun = dict_property(lambda s: s.__data, 7)  # pylint: disable=protected-access
     Event = dict_property(lambda s: s.__data, 8)  # pylint: disable=protected-access
     # fmt: on
@@ -444,14 +441,14 @@ class ModbusControlBlock:
     should come from here.
     """
 
-    __mode = "ASCII"
-    __diagnostic = [False] * 16
-    __listen_only = False
-    __delimiter = b"\r"
-    __counters = ModbusCountersHandler()
-    __identity = ModbusDeviceIdentification()
-    __plus = ModbusPlusStatistics()
-    __events: list[ModbusEvent] = []
+    _mode = "ASCII"
+    _diagnostic = [False] * 16
+    _listen_only = False
+    _delimiter = b"\r"
+    _counters = ModbusCountersHandler()
+    _identity = ModbusDeviceIdentification()
+    _plus = ModbusPlusStatistics()
+    _events: list[ModbusEvent] = []
 
     # -------------------------------------------------------------------------#
     #  Magic
@@ -468,9 +465,9 @@ class ModbusControlBlock:
 
         :returns: An iterator of the device counters
         """
-        return self.__counters.__iter__()
+        return self._counters.__iter__()
 
-    def __new__(cls, *_args, **_kwargs):
+    def __new__(cls):
         """Create a new instance."""
         if "_inst" not in vars(cls):
             cls._inst = object.__new__(cls)
@@ -484,8 +481,8 @@ class ModbusControlBlock:
 
         :param event: A new event to add to the log
         """
-        self.__events.insert(0, event)
-        self.__events = self.__events[0:64]  # chomp to 64 entries
+        self._events.insert(0, event)
+        self._events = self._events[0:64]  # chomp to 64 entries
         self.Counter.Event += 1
 
     def getEvents(self):
@@ -493,26 +490,26 @@ class ModbusControlBlock:
 
         :returns: The encoded events packet
         """
-        events = [event.encode() for event in self.__events]
+        events = [event.encode() for event in self._events]
         return b"".join(events)
 
     def clearEvents(self):
         """Clear the current list of events."""
-        self.__events = []
+        self._events = []
 
     # -------------------------------------------------------------------------#
     #  Other Properties
     # -------------------------------------------------------------------------#
-    Identity = property(lambda s: s.__identity)
-    Counter = property(lambda s: s.__counters)
-    Events = property(lambda s: s.__events)
-    Plus = property(lambda s: s.__plus)
+    Identity = property(lambda s: s._identity)
+    Counter = property(lambda s: s._counters)
+    Events = property(lambda s: s._events)
+    Plus = property(lambda s: s._plus)
 
     def reset(self):
         """Clear all of the system counters and the diagnostic register."""
-        self.__events = []
-        self.__counters.reset()
-        self.__diagnostic = [False] * 16
+        self._events = []
+        self._counters.reset()
+        self._diagnostic = [False] * 16
 
     # -------------------------------------------------------------------------#
     #  Listen Properties
@@ -522,9 +519,9 @@ class ModbusControlBlock:
 
         :param value: The value to set the listen status to
         """
-        self.__listen_only = bool(value)  # pylint: disable=unused-private-member
+        self._listen_only = bool(value)
 
-    ListenOnly = property(lambda s: s.__listen_only, _setListenOnly)
+    ListenOnly = property(lambda s: s._listen_only, _setListenOnly)
 
     # -------------------------------------------------------------------------#
     #  Mode Properties
@@ -535,9 +532,9 @@ class ModbusControlBlock:
         :param mode: The data transfer method in (RTU, ASCII)
         """
         if mode in {"ASCII", "RTU"}:
-            self.__mode = mode  # pylint: disable=unused-private-member
+            self._mode = mode
 
-    Mode = property(lambda s: s.__mode, _setMode)
+    Mode = property(lambda s: s._mode, _setMode)
 
     # -------------------------------------------------------------------------#
     #  Delimiter Properties
@@ -548,15 +545,13 @@ class ModbusControlBlock:
         :param char: The new serial delimiter character
         """
         if isinstance(char, str):
-            self.__delimiter = char.encode()  # pylint: disable=unused-private-member
+            self._delimiter = char.encode()
         if isinstance(char, bytes):
-            self.__delimiter = char  # pylint: disable=unused-private-member
+            self._delimiter = char
         elif isinstance(char, int):
-            self.__delimiter = struct.pack(  # pylint: disable=unused-private-member
-                ">B", char
-            )
+            self._delimiter = struct.pack(">B", char)
 
-    Delimiter = property(lambda s: s.__delimiter, _setDelimiter)
+    Delimiter = property(lambda s: s._delimiter, _setDelimiter)
 
     # -------------------------------------------------------------------------#
     #  Diagnostic Properties
@@ -567,8 +562,8 @@ class ModbusControlBlock:
         :param mapping: Dictionary of key:value pairs to set
         """
         for entry in iter(mapping.items()):
-            if entry[0] >= 0 and entry[0] < len(self.__diagnostic):
-                self.__diagnostic[entry[0]] = bool(entry[1])
+            if entry[0] >= 0 and entry[0] < len(self._diagnostic):
+                self._diagnostic[entry[0]] = bool(entry[1])
 
     def getDiagnostic(self, bit):
         """Get the value in the diagnostic register.
@@ -577,8 +572,8 @@ class ModbusControlBlock:
         :returns: The current value of the requested bit
         """
         try:
-            if bit and 0 <= bit < len(self.__diagnostic):
-                return self.__diagnostic[bit]
+            if bit and 0 <= bit < len(self._diagnostic):
+                return self._diagnostic[bit]
         except Exception:  # pylint: disable=broad-except
             return None
         return None
@@ -588,4 +583,4 @@ class ModbusControlBlock:
 
         :returns: The diagnostic register collection
         """
-        return self.__diagnostic
+        return self._diagnostic

@@ -2,6 +2,39 @@ API changes
 ===========
 Versions (X.Y.Z) where Z > 0 e.g. 3.0.1 do NOT have API changes!
 
+-----------------
+API changes 3.9.0
+-----------------
+- Python 3.9 is reaching end of life, and no longer supported.
+  Depending on the usage the code might still work
+- Start*Server, custom_functions -> custom_pdu (handled by Modbus<x>Server)
+- Bit handling (e.g. read_coils) was not handling the bits in the correct order
+
+API changes 3.8.0
+-----------------
+- ModbusSlaveContext, removed zero_mode parameter.
+- Removed skip_encode parameter.
+- renamed ModbusExceptions enums to legal constants.
+- enforced client keyword only parameters (positional not allowed).
+- added trace_packet/pdu/connect to client/server.
+- removed on_connect_callback from client.
+- removed response_manipulator, request_tracer from server.
+
+API changes 3.7.0
+-----------------
+- default slave changed to 1 from 0 (which is broadcast).
+- broadcast_enable, retry_on_empty, no_resend_on_retry parameters removed.
+- class method generate_ssl() added to TLS client (sync/async).
+- removed certfile, keyfile, password from TLS client, please use generate_ssl()
+- on_reconnect_callback() removed from clients (sync/async).
+- on_connect_callback(true/false) added to async clients.
+- binary framer no longer supported
+- Framer.<type> renamed to FramerType.<type>
+- PDU classes moved to pymodbus/pdu
+- Simulator config custom actions kwargs -> parameters
+- Non defined parameters (kwargs) no longer valid
+- Drop support for Python 3.8 (its no longer tested, but will probably work)
+
 
 API changes 3.6.0
 -----------------

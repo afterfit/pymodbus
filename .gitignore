@@ -9,12 +9,14 @@ __pycache__/
 .idea/
 .noseids
 .pymodhis
+.pypirc
 .venv
 .vscode
 .vscode/
-build/
 prof/
-/dist/
+dist/pymodbus*
+build/html
 /pymodbus.egg-info/
 venv
 downloaded_files/
+pymodbus.log

@@ -12,13 +12,12 @@ import logging
 import textwrap
 
 from pymodbus import pymodbus_apply_logging_config
-from pymodbus.factory import ClientDecoder, ServerDecoder
-from pymodbus.transaction import (
-    ModbusAsciiFramer,
-    ModbusBinaryFramer,
-    ModbusRtuFramer,
-    ModbusSocketFramer,
+from pymodbus.framer import (
+    FramerAscii,
+    FramerRTU,
+    FramerSocket,
 )
+from pymodbus.pdu import DecodePDU
 
 
 _logger = logging.getLogger(__file__)
@@ -30,7 +29,7 @@ def get_commandline(cmdline):
 
     parser.add_argument(
         "--framer",
-        choices=["ascii", "binary", "rtu", "socket"],
+        choices=["ascii", "rtu", "socket"],
         help="set framer, default is rtu",
         type=str,
         default="rtu",
@@ -71,20 +70,18 @@ class Decoder:
         """Attempt to decode the supplied message."""
         value = message if self.encode else c.encode(message, "hex_codec")
         print("=" * 80)
-        print(f"Decoding Message {value}")
+        print(f"Decoding Message {value!r}")
         print("=" * 80)
         decoders = [
-            self.framer(ServerDecoder(), client=None),
-            self.framer(ClientDecoder(), client=None),
+            self.framer(DecodePDU(True)),
+            self.framer(DecodePDU(False)),
         ]
         for decoder in decoders:
             print(f"{decoder.decoder.__class__.__name__}")
             print("-" * 80)
             try:
-                slave = decoder._header.get(  # pylint: disable=protected-access
-                    "uid", 0x00
-                )
-                decoder.processIncomingPacket(message, self.report, slave)
+                _, pdu = decoder.processIncomingFrame(message)
+                self.report(pdu)
             except Exception:  # pylint: disable=broad-except
                 self.check_errors(decoder, message)
 
@@ -96,40 +93,22 @@ class Decoder:
     def report(self, message):
         """Print the message information."""
         print(
-            "%-15s = %s"  # pylint: disable=consider-using-f-string
-            % (
-                "name",
-                message.__class__.__name__,
-            )
+            f"{'name':.15s} = {message.__class__.__name__}"
         )
         for k_dict, v_dict in message.__dict__.items():
             if isinstance(v_dict, dict):
-                print("%-15s =" % k_dict)  # pylint: disable=consider-using-f-string
+                print(f"{k_dict:.15s} =")
                 for k_item, v_item in v_dict.items():
-                    print(
-                        "  %-12s => %s"  # pylint: disable=consider-using-f-string
-                        % (k_item, v_item)
+                    print(f"  {k_item:.12s} => {v_item}"
                     )
             elif isinstance(v_dict, collections.abc.Iterable):
-                print("%-15s =" % k_dict)  # pylint: disable=consider-using-f-string
+                print(f"{k_dict:.15s} =")
                 value = str([int(x) for x in v_dict])
                 for line in textwrap.wrap(value, 60):
-                    print(
-                        "%-15s . %s"  # pylint: disable=consider-using-f-string
-                        % ("", line)
-                    )
+                    print(f"{' ':.15s} . {line}")
             else:
-                print(
-                    "%-15s = %s"  # pylint: disable=consider-using-f-string
-                    % (k_dict, hex(v_dict))
-                )
-        print(
-            "%-15s = %s"  # pylint: disable=consider-using-f-string
-            % (
-                "documentation",
-                message.__doc__,
-            )
-        )
+                print(f"{k_dict:.15s} = {hex(v_dict)}")
+        print("{'documentation':.15s} = {message.__doc__}")
 
 
 # -------------------------------------------------------------------------- #
@@ -147,10 +126,9 @@ def parse_messages(cmdline=None):
         return
 
     framer = {
-        "ascii": ModbusAsciiFramer,
-        "binary": ModbusBinaryFramer,
-        "rtu": ModbusRtuFramer,
-        "socket": ModbusSocketFramer,
+        "ascii": FramerAscii,
+        "rtu": FramerRTU,
+        "socket": FramerSocket,
     }[args.framer]
     decoder = Decoder(framer)
 

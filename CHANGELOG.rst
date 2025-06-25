@@ -7,6 +7,305 @@ helps make pymodbus a better product.
 
 :ref:`Authors`: contains a complete list of volunteers have contributed to each major version.
 
+Version 3.9.2
+-------------
+* Reactivate simulator validate. (#2643)
+* Don't bool-test explicit datastores (#2638)
+* Test and hard delayed response test. (#2636)
+* Update simulator doc. (#2635)
+* SimData update
+* Officially working towards 4.0.0
+
+Version 3.9.1
+-------------
+* Correct byte order in bits. (#2631)
+
+Version 3.9.0
+-------------
+* Correct bit handling internally and in API. (#2627)
+* default argument  ModbusSequentialDataBlock (#2622)
+* Fix exception error message for decoding response (#2618)
+* Expose exception_code to API. (#2615)
+* Simplify ruff config (#2611)
+* Documentation dont fixed. (#2605)
+* sum() can operate on an Iterator directly (#2610)
+* SimData update. (#2601)
+* Start<x>Server custom_functions -> custom_pdu.
+* Update pyproject.toml to remove python 3.9.
+* Remove validate() from datastores. (#2595)
+* Python 3.9 is EOL, not supported actively. (#2596)
+* correct handle_local_echo for sync client. (#2593)
+* devcontainer, automatic install. (#2583)
+* Don't set_result on completed futures. (#2582)
+* Flush recv_buffer before each transaction write. (#2581)
+* Add missing trace. (#2578)
+* Update github actions. (#2579)
+
+Version 3.8.6
+-------------
+* Allow id=0 and check if response.id == request.id. (#2572)
+
+Version 3.8.5
+-------------
+* New simulator is WIP, not to be used. (#2568)
+* dev_id=0 no response expected (returns ExceptionResponse(0xff)). (#2567)
+* New simulator datastore. (#2535)
+
+Version 3.8.4
+-------------
+* Parameterize string encoding in convert_to_registers and convert_from_registers (#2558)
+* Fix client modbus function calls in remote by adding count as keyword argument (#2563)
+* Fix exception text in ModbusPDU.validateAddress (#2551)
+* Typo arround `no_response_expected` (#2550)
+* Trace new connection in server. (#2549)
+* Add trace to server.
+* Update misleading DATATYPE text. (#2547)
+* Fix pylint.
+* Clarify server usage.
+* Solve instable transaction testing. (#2538)
+
+Version 3.8.3
+-------------
+* Remove deprecate from payload. (#2532)
+* Add background parameter to servers. (#2529)
+* Split async_io.py and simplify server start/stop. (#2528)
+* Update custom_msg example to include server. (#2527)
+* Move repl doc to repl repo. (#2522)
+* Add API to set max until disconnect. (#2521)
+
+Version 3.8.2
+-------------
+* Asyncio future removed from sync client. (#2514)
+
+Version 3.8.1
+-------------
+* Convert endianness (#2506)
+* Fix sync serial client, loop. (#2510)
+* Correct future. (#2507)
+* Correct #2501 (#2504)
+* Raise exception on no response in async client. (#2502)
+* re-instatiate Future on reconnect (#2501)
+* Remove all trailing zeroes during string decoding (#2493)
+* Fix too many sync client log messages. (#2491)
+
+Version 3.8.0
+-------------
+* slave_id -> dev_id (internally). (#2486)
+* Pin python 3.13.0 and update ruff. (#2487)
+* Add documentation link to README. (#2483)
+* Add datatype bits to convert_to/from_registers. (#2480)
+* Add trace API to server. (#2479)
+* Add trace API for client. (#2478)
+* Integrate TransactionManager in server. (#2475)
+* Rename test/sub. (#2473)
+* Check server closes file descriptors. (#2472)
+* Update http_server.py (#2471)
+* Restrict write_registers etc to list[int]. (#2469)
+* Write_registers/pdu typing again. (#2468)
+* Remove ModbusExceptions enum. (#2467)
+* Add special ssl socket handling of "no data". (#2466)
+* Add tip that values= will be modified to list[int]. (#2465)
+* client 100% test coverage (#2396)
+* Extend TransactionManager to handle sync. (#2457)
+* Add convert_from to simple examples. (#2458)
+* New async transaction manager. (#2453)
+* Deprecate BinaryPayloadDecoder / BinaryPayloadBuilder. (#2456)
+* Correct close for server transport. (#2455)
+* RTU frame problem, when received split. (#2452)
+* pdu, 100% coverage. (#2450)
+* Refactor PDU, add strong typing to base classes. (#2438)
+* Enforce keyword only parameters. (#2448)
+* Fix read_device_information with sync client. (#2441)
+* Simplify syncTransactionManager. (#2443)
+* Import examples direct. (#2442)
+* rename ModbusExceptions enums to legal constants. (#2436)
+* Add typing to examples. (#2435)
+* Refactor PDU diag. (#2421)
+* Fix client lock, Parallel API calls are not permitted. (#2434)
+* Ensure accept_no_response_limit > retries. (#2433)
+* Check client and frametype. (#2426)
+* Add MDAP to TLS frame. (#2425)
+* Clean/Finalize testing for bit functions. (#2420)
+* Simplify pdu bit, remove skip_encode. (#2417)
+* remove zero_mode parameter. (#2354)
+* Prepare refactor messages. (#2416)
+* Fixed handle local echo in serialserver (#2415)
+* Correct minor framer/pdu errors. (#2407)
+* Rtu decode frames without byte count. (#2412)
+* Improve type of parameter values of write_registers (#2411)
+* PDU lookupClass work with sub function code. (#2410)
+* Correct wait_next_api link in README. (#2406)
+
+Version 3.7.4
+-------------
+* Clean PDU init. (#2399)
+* Wrong close, when transaction do not match. (#2401)
+* Remove unmaintained (not working) example contributions. (#2400)
+* All pdu (incl. function code) tests to pdu directory. (#2397)
+* Add `no_response_expected` argument to requests (#2385)
+* Resubmit: Don't close/reopen tcp connection on single modbus message timeout (#2350)
+* 100% test coverage for PDU. (#2394)
+* Type DecodePDU. (#2392)
+* Update to use DecodePDU. (#2391)
+* Client/Server decoder renamed and moved to pdu. (#2390)
+* Move client/server decoder to pdu. (#2388)
+* Introducing PyModbus Guru on Gurubase.io (#2387)
+* Remove IllegalFunctionRequest. (#2384)
+* remove ModbusResponse. (#2383)
+* Add typing to pdu base classes. (#2380)
+* Updated roadmap.
+* remove databuffer from framer. (#2379)
+* Improve retries for sync client. (#2377)
+* Move process test to framer tests (#2376)
+* Framer do not check ids (#2375)
+* Remove callback from framer. (#2374)
+* Auto fill device ids for clients. (#2372)
+* Reenable multidrop tests. (#2370)
+* write_register/s accept bytes or int. (#2369)
+* roadmap corrections.
+* Added roadmap (not written in stone). (#2367)
+* Update README to show python 3.13.
+* Test on Python 3.13 (#2366)
+* Use @abstractmethod (#2365)
+* Corrected smaller documentation bugs. (#2364)
+* README as landing page in readthedocs. (#2363)
+
+Version 3.7.3
+-------------
+* 100% test coverage of framers (#2359)
+* Framer, final touches. (#2360)
+* Readme file renamed (#2357)
+* Remove old framers (#2358)
+* frameProcessIncomingPacket removed (#2355)
+* Cleanup framers (reduce old_framers) (#2342)
+* Run CI on PR targeted at wait_next_api.
+* Sync client, allow unknown recv msg size. (#2353)
+* integrate old rtu framer in new framer (#2344)
+* Update README.rst (#2351)
+* Client.close should not allow reconnect= (#2347)
+* Remove async client.idle_time(). (#2349)
+* Client doc, add common methods (base). (#2348)
+* Reset receive buffer with send(). (#2343)
+* Remove unused protocol_id from pdu (#2340)
+* CI run on demand on non-protected branches. (#2339)
+* Server listener and client connections have is_server set. (#2338)
+* Reopen listener in server if disconnected. (#2337)
+* Regroup test. (#2335)
+* Improve docs around sync clients and reconnection (#2321)
+* transport 100% test coverage (again) (#2333)
+* Update actions to new node.js. (#2332)
+* Bump 3rd party (#2331)
+* Documentation on_connect_callback (#2324)
+* Fixes the unexpected implementation of the ModbusSerialClient.connected property (#2327)
+* Forward error responses instead of timing out. (#2329)
+* Add `stacklevel=2` to logging functions (#2330)
+* Fix encoding & decoding of ReadFileRecordResponse (#2319)
+* Improvements for example/contib/solar (#2318)
+* Update solar.py (#2316)
+* Remove double conversion in int (#2315)
+* Complete pull request #2310 (#2312)
+* fixed type hints for write_register and write_registers (#2309)
+* Remove _header from framers. (#2305)
+
+Version 3.7.2
+-------------
+* Correct README
+* Rename branch wait3.8.0 to wait_next_API
+
+
+Version 3.7.1
+-------------
+* Better error message, when pyserial is missing.
+* Slave=0 will return first response, used to identify device address. (#2298)
+* Feature/add simulator api skeleton (#2274)
+* Correct max. read size for registers. (#2295)
+* Ruff complains, due to upgrade. (#2296)
+* Properly process 'slaves' argument (#2292)
+* Update repl requirement to >= 2.0.4 (#2291)
+* Fix aiohttp < 3.9.0 (#2289)
+* Simplify framer test setup (#2290)
+* Clean up ModbusControlBlock (#2288)
+* example docstrings diag_message -> pdu.diag_message (#2286)
+* Explain version schema (#2284)
+* Add more testing for WriteRegisters. (#2280)
+* Proof for issue 2273. (#2277)
+* Update simulator tests. (#2276)
+
+
+Version 3.7.0
+-------------
+* Remove unneeded client parameters. (#2272)
+* simulator: Fix context single parameter (#2264)
+* buildPacket can be used for Request and Response (#2262)
+* More descriptive decoder exceptions (#2260)
+* Cleanup ReadWriteMultipleRegistersResponse and testing (#2261)
+* Feature/simulator addressing (#2258)
+* Framer optimization (apart from RTU). (#2146)
+* Use mock.patch.object to avoid protected access errors. (#2251)
+* Fix some mypy type checking errors in test_transaction.py (#2250)
+* Update check for windows platform (#2247)
+* Logging 100% coverage. (#2248)
+* CI, Block draft PRs to use CPU minutes. (#2245, #2246)
+* Remove kwargs client. (#2243, #2244, #2257)
+* remove kwargs PDU messagees. (#2240)
+* Remove message_generator example (not part of API). (#2239)
+* Update dev dependencies (#2241)
+* Fix ruff check in CI (#2242)
+* Remove kwargs. (#2236, #2237)
+* Simulator config, kwargs -> parameters. (#2235)
+* Refactor transaction handling to better separate async and sync code. (#2232)
+* Simplify some BinaryPayload pack operations (#2224)
+* Fix writing to serial (rs485) on windows os. (#2191)
+* Remember to remove serial writer. (#2209)
+* Transaction_id for serial == 0. (#2208)
+* Solve pylint error.
+* Sync TLS needs time before reading frame (#2186)
+* Update transaction.py (#2174)
+* PDU classes --> pymodbus/pdu. (#2160)
+* Speed up no data detection. (#2150)
+* RTU decode hunt part. (#2138)
+* Dislodge client classes from modbusProtocol. (#2137)
+* Merge new message layer and old framer directory. (#2135)
+* Coverage == 91%. (#2132)
+* Remove binary_framer. (#2130)
+* on_reconnect_callback --> on_connect_callback. (#2122)
+* Remove certfile,keyfile,password from TLS client. (#2121)
+* Drop support for python 3.8 (#2112)
+
+
+Version 3.6.9
+-------------
+* Remove python 3.8 from CI
+* Log comm retries. (#2220)
+* Solve serial unrequested frame. (#2219)
+* test convert registers with 1234.... (#2217)
+* Fix writing to serial (rs485) on windows os. (#2191)
+* Remember to remove serial writer. (#2209)
+* Update client.rst (#2199)
+* Fix usage file names (#2194)
+* Show error if example is run without support files. (#2189)
+* Solve pylint error.
+* Describe zero_mode in ModbusSlaveContext.__init__ (#2187)
+* Datastore will not return ExceptionResponse. (#2175)
+* call async datastore from modbus server (#2144)
+* Transaction id overrun.
+* Add minimal devcontainer. (#2172)
+* Sphinx: do not turn warnings into errors.
+* Fix usage of AsyncModbusTcpClient in client docs page (#2169)
+* Bump actions CI. (#2166)
+* Request/Response: change execute to be async method (#2142)
+* datastore: add async_setValues/getValues methods (#2165)
+* fixed kwargs not being expanded for actions on bit registers, adjusted tests to catch this issue (#2161)
+* Clean datastore setValues. (#2145)
+* modbus_server: call execute in a way that those can be either coroutines or normal methods (#2139)
+* Streamline message class. (#2133)
+* Fix decode for wrong mdap len.
+* SOCKET/TLS framer using message decode(). (#2129)
+* ASCII framer using message decode() (#2128)
+* Add generate_ssl() to TLS client as helper. (#2120)
+* add _legacy_decoder to message rtu (#2119)
+
+
 Version 3.6.8
 -------------
 * Allow socket exception response with wrong length

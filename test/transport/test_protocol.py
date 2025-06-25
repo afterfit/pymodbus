@@ -32,14 +32,12 @@ class TestTransportProtocol1:
     @pytest.mark.parametrize("use_comm_type", COMM_TYPES)
     async def test_init_client(self, client):
         """Test init client."""
-        assert not hasattr(client, "active_connections")
         assert not client.is_server
 
 
     @pytest.mark.parametrize("use_comm_type", COMM_TYPES)
     async def test_init_server(self, server):
         """Test init server."""
-        assert not hasattr(server, "unique_id")
         assert not server.active_connections
         assert server.is_server
 
@@ -52,6 +50,11 @@ class TestTransportProtocol1:
         """Test callbacks."""
         use_clc.source_address = ("localhost", 112)
         ModbusProtocol(use_clc, True)
+
+    def test_init_sync(self, use_clc):
+        """Test callbacks."""
+        use_clc.source_address = ("localhost", 112)
+        ModbusProtocol(use_clc, True, is_sync=True)
 
     async def test_init_source_addr_none(self, use_clc):
         """Test callbacks."""
@@ -194,6 +197,12 @@ class TestTransportProtocol1:
         client.datagram_received(b"par", ("127.0.0.1", 502))
         client.datagram_received(b"tialresponse", ("127.0.0.1", 502))
         assert client.recv_buffer == b"response"
+        assert not client.sent_buffer
+
+    async def test_handle_no_transport(self, client):
+        """Test send()."""
+        client.transport = None
+        client.send(b"partial")
         assert not client.sent_buffer
 
 

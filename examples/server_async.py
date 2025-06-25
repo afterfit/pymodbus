@@ -6,7 +6,7 @@ An example of a multi threaded asynchronous server.
 usage::
 
     server_async.py [-h] [--comm {tcp,udp,serial,tls}]
-                    [--framer {ascii,binary,rtu,socket,tls}]
+                    [--framer {ascii,rtu,socket,tls}]
                     [--log {critical,error,warning,info,debug}]
                     [--port PORT] [--store {sequential,sparse,factory,none}]
                     [--slaves SLAVES]
@@ -15,7 +15,7 @@ usage::
         show this help message and exit
     -c, --comm {tcp,udp,serial,tls}
         set communication, default is tcp
-    -f, --framer {ascii,binary,rtu,socket,tls}
+    -f, --framer {ascii,rtu,socket,tls}
         set framer, default depends on --comm
     -l, --log {critical,error,warning,info,debug}
         set log level, default is info
@@ -34,8 +34,18 @@ The corresponding client can be started as:
 """
 import asyncio
 import logging
+import sys
+from collections.abc import Callable
+from typing import Any
 
-import helper
+
+try:
+    import helper  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 from pymodbus import __version__ as pymodbus_version
 from pymodbus.datastore import (
@@ -62,6 +72,7 @@ def setup_server(description=None, context=None, cmdline=None):
     args = helper.get_commandline(server=True, description=description, cmdline=cmdline)
     if context:
         args.context = context
+    datablock: Callable[[], Any]
     if not args.context:
         _logger.info("### Create datastore")
         # The datastores only respond to the addresses that are initialized
@@ -80,39 +91,23 @@ def setup_server(description=None, context=None, cmdline=None):
             # full address range::
             datablock = lambda : ModbusSequentialDataBlock.create()  # pylint: disable=unnecessary-lambda-assignment,unnecessary-lambda
 
-        if args.slaves:
+        if args.slaves > 1:
             # The server then makes use of a server context that allows the server
             # to respond with different slave contexts for different slave ids.
             # By default it will return the same context for every slave id supplied
             # (broadcast mode).
             # However, this can be overloaded by setting the single flag to False and
             # then supplying a dictionary of slave id to context mapping::
-            #
-            # The slave context can also be initialized in zero_mode which means
-            # that a request to address(0-7) will map to the address (0-7).
-            # The default is False which is based on section 4.4 of the
-            # specification, so address(0-7) will map to (1-8)::
-            context = {
-                0x01: ModbusSlaveContext(
+            context = {}
+
+            for slave in range(args.slaves):
+                context[slave] = ModbusSlaveContext(
                     di=datablock(),
                     co=datablock(),
                     hr=datablock(),
                     ir=datablock(),
-                ),
-                0x02: ModbusSlaveContext(
-                    di=datablock(),
-                    co=datablock(),
-                    hr=datablock(),
-                    ir=datablock(),
-                ),
-                0x03: ModbusSlaveContext(
-                    di=datablock(),
-                    co=datablock(),
-                    hr=datablock(),
-                    ir=datablock(),
-                    zero_mode=True,
-                ),
-            }
+                )
+
             single = False
         else:
             context = ModbusSlaveContext(
@@ -141,22 +136,20 @@ def setup_server(description=None, context=None, cmdline=None):
     return args
 
 
-async def run_async_server(args):
+async def run_async_server(args) -> None:
     """Run server."""
     txt = f"### start ASYNC server, listening on {args.port} - {args.comm}"
     _logger.info(txt)
     if args.comm == "tcp":
         address = (args.host if args.host else "", args.port if args.port else None)
-        server = await StartAsyncTcpServer(
+        await StartAsyncTcpServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
-            # TBD host=
-            # TBD port=
             address=address,  # listen address
             # custom_functions=[],  # allow custom handling
             framer=args.framer,  # The framer strategy to use
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
     elif args.comm == "udp":
@@ -164,20 +157,20 @@ async def run_async_server(args):
             args.host if args.host else "127.0.0.1",
             args.port if args.port else None,
         )
-        server = await StartAsyncUdpServer(
+        await StartAsyncUdpServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
             address=address,  # listen address
             # custom_functions=[],  # allow custom handling
             framer=args.framer,  # The framer strategy to use
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
     elif args.comm == "serial":
         # socat -d -d PTY,link=/tmp/ptyp0,raw,echo=0,ispeed=9600
         #             PTY,link=/tmp/ttyp0,raw,echo=0,ospeed=9600
-        server = await StartAsyncSerialServer(
+        await StartAsyncSerialServer(
             context=args.context,  # Data storage
             identity=args.identity,  # server identify
             # timeout=1,  # waiting time for request to complete
@@ -190,14 +183,12 @@ async def run_async_server(args):
             baudrate=args.baudrate,  # The baud rate to use for the serial device
             # handle_local_echo=False,  # Handle local echo of the USB-to-RS485 adaptor
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
-            # strict=True,  # use strict timing, t1.5 for Modbus RTU
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
         )
     elif args.comm == "tls":
         address = (args.host if args.host else "", args.port if args.port else None)
-        server = await StartAsyncTlsServer(
+        await StartAsyncTlsServer(
             context=args.context,  # Data storage
-            host="localhost",  # define tcp address where to connect to.
             # port=port,  # on which port
             identity=args.identity,  # server identify
             # custom_functions=[],  # allow custom handling
@@ -212,13 +203,12 @@ async def run_async_server(args):
             ),  # The key file path for TLS (used if sslctx is None)
             # password="none",  # The password for for decrypting the private key file
             # ignore_missing_slaves=True,  # ignore request to a missing slave
-            # broadcast_enable=False,  # treat slave_id 0 as broadcast address,
+            # broadcast_enable=False,  # treat slave 0 as broadcast address,
             # timeout=1,  # waiting time for request to complete
         )
-    return server
 
 
-async def async_helper():
+async def async_helper() -> None:
     """Combine setup and run."""
     _logger.info("Starting...")
     run_args = setup_server(description="Run asynchronous server.")

@@ -8,13 +8,18 @@ Please select a topic in the left hand column.
    :caption: Contents:
    :hidden:
 
-   source/readme
+   source/api_changes
    source/client
    source/server
    source/repl
+   source/simulator3
    source/simulator
+   source/simulator/simulator
    source/examples
    source/authors
    source/changelog
-   source/api_changes
    source/internals
+   source/roadmap
+   source/upgrade_40
+
+.. include:: ../README.rst

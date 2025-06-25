@@ -11,7 +11,7 @@ import signal
 from pymodbus.client import ModbusSerialClient
 from pymodbus.datastore import ModbusServerContext
 from pymodbus.datastore.remote import RemoteSlaveContext
-from pymodbus.server.async_io import ModbusTcpServer
+from pymodbus.server import ModbusTcpServer
 
 
 _logger = logging.getLogger(__file__)
@@ -58,7 +58,7 @@ class SerialForwarderTCPServer:
 
 
 def get_commandline():
-    """Read and validate command line arguments"""
+    """Read and check command line arguments"""
     parser = argparse.ArgumentParser(description="Command line options")
     parser.add_argument(
         "--log",

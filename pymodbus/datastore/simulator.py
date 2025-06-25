@@ -4,8 +4,11 @@ from __future__ import annotations
 import dataclasses
 import random
 import struct
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
+
+from pymodbus.datastore.context import ModbusBaseSlaveContext
 
 
 WORD_SIZE = 16
@@ -32,7 +35,7 @@ class Cell:
     access: bool = False
     value: int = 0
     action: int = 0
-    action_kwargs: dict[str, Any] | None = None
+    action_parameters: dict[str, Any] | None = None
     count_read: int = 0
     count_write: int = 0
 
@@ -44,7 +47,7 @@ class TextCell:  # pylint: disable=too-few-public-methods
     access: str
     value: str
     action: str
-    action_kwargs: str
+    action_parameters: str
     count_read: str
     count_write: str
 
@@ -66,7 +69,7 @@ class Label:  # pylint: disable=too-many-instance-attributes
     increment: str = "increment"
     invalid: str = "invalid"
     ir_size: str = "ir size"
-    kwargs: str = "kwargs"
+    parameters: str = "parameters"
     method: str = "method"
     next: str = "next"
     none: str = "none"
@@ -103,10 +106,10 @@ class Setup:
     :meta private:
     """
 
-    def __init__(self, runtime):
+    def __init__(self, runtime: Any) -> None:
         """Initialize."""
         self.runtime = runtime
-        self.config = {}
+        self.config: Any = {}
         self.config_types: dict[str, dict[str, Any]] = {
             Label.type_bits: {
                 Label.type: CellType.BITS,
@@ -145,7 +148,7 @@ class Setup:
             },
         }
 
-    def handle_type_bits(self, start, stop, value, action, action_kwargs):
+    def handle_type_bits(self, start, stop, value, action, action_parameters):
         """Handle type bits."""
         for reg in self.runtime.registers[start:stop]:
             if reg.type != CellType.INVALID:
@@ -153,9 +156,9 @@ class Setup:
             reg.value = value
             reg.type = CellType.BITS
             reg.action = action
-            reg.action_kwargs = action_kwargs
+            reg.action_parameters = action_parameters
 
-    def handle_type_uint16(self, start, stop, value, action, action_kwargs):
+    def handle_type_uint16(self, start, stop, value, action, action_parameters):
         """Handle type uint16."""
         for reg in self.runtime.registers[start:stop]:
             if reg.type != CellType.INVALID:
@@ -163,9 +166,9 @@ class Setup:
             reg.value = value
             reg.type = CellType.UINT16
             reg.action = action
-            reg.action_kwargs = action_kwargs
+            reg.action_parameters = action_parameters
 
-    def handle_type_uint32(self, start, stop, value, action, action_kwargs):
+    def handle_type_uint32(self, start, stop, value, action, action_parameters):
         """Handle type uint32."""
         regs_value = ModbusSimulatorContext.build_registers_from_value(value, True)
         for i in range(start, stop, 2):
@@ -175,11 +178,11 @@ class Setup:
             regs[0].value = regs_value[0]
             regs[0].type = CellType.UINT32
             regs[0].action = action
-            regs[0].action_kwargs = action_kwargs
+            regs[0].action_parameters = action_parameters
             regs[1].value = regs_value[1]
             regs[1].type = CellType.NEXT
 
-    def handle_type_float32(self, start, stop, value, action, action_kwargs):
+    def handle_type_float32(self, start, stop, value, action, action_parameters):
         """Handle type uint32."""
         regs_value = ModbusSimulatorContext.build_registers_from_value(value, False)
         for i in range(start, stop, 2):
@@ -189,11 +192,11 @@ class Setup:
             regs[0].value = regs_value[0]
             regs[0].type = CellType.FLOAT32
             regs[0].action = action
-            regs[0].action_kwargs = action_kwargs
+            regs[0].action_parameters = action_parameters
             regs[1].value = regs_value[1]
             regs[1].type = CellType.NEXT
 
-    def handle_type_string(self, start, stop, value, action, action_kwargs):
+    def handle_type_string(self, start, stop, value, action, action_parameters):
         """Handle type string."""
         regs = stop - start
         reg_len = regs * 2
@@ -211,12 +214,12 @@ class Setup:
             reg.type = CellType.NEXT
         self.runtime.registers[start].type = CellType.STRING
         self.runtime.registers[start].action = action
-        self.runtime.registers[start].action_kwargs = action_kwargs
+        self.runtime.registers[start].action_parameters = action_parameters
 
     def handle_setup_section(self):
         """Load setup section."""
         layout = Label.try_get(Label.setup, self.config)
-        self.runtime.fc_offset = {key: 0 for key in range(25)}
+        self.runtime.fc_offset = dict.fromkeys(range(25), 0)
         size_co = Label.try_get(Label.co_size, layout)
         size_di = Label.try_get(Label.di_size, layout)
         size_hr = Label.try_get(Label.hr_size, layout)
@@ -302,7 +305,7 @@ class Setup:
                     self.runtime.action_name_to_id[
                         entry.get(Label.action, type_entry[Label.action])
                     ],
-                    entry.get(Label.kwargs, None),
+                    entry.get(Label.parameters, None),
                 )
             del self.config[section]
 
@@ -370,7 +373,7 @@ class Setup:
             raise RuntimeError(f"INVALID key in setup: {self.config}")
 
 
-class ModbusSimulatorContext:
+class ModbusSimulatorContext(ModbusBaseSlaveContext):
     """Modbus simulator.
 
     :param config: A dict with structure as shown below.
@@ -432,12 +435,12 @@ class ModbusSimulatorContext:
             "write": [   --> allow write, efault is ReadOnly
                 [5, 5]  --> start, end bytes, repeated as needed
             ],
-            "bits": [  --> Define bits (1 register == 1 byte)
+            "bits": [  --> Define bits (1 register == 2 bytes)
                 [30, 31],  --> start, end registers, repeated as needed
                 {"addr": [32, 34], "value": 0xF1},  --> with value
                 {"addr": [35, 36], "action": "increment"},  --> with action
                 {"addr": [37, 38], "action": "increment", "value": 0xF1}  --> with action and value
-                {"addr": [37, 38], "action": "increment", "kwargs": {"min": 0, "max": 100}}  --> with action with arguments
+                {"addr": [37, 38], "action": "increment", "parameters": {"min": 0, "max": 100}}  --> with action with arguments
             ],
             "uint16": [  --> Define uint16 (1 register == 2 bytes)
                 --> same as type_bits
@@ -492,8 +495,8 @@ class ModbusSimulatorContext:
         text_cell.count_read = str(reg.count_read)
         text_cell.count_write = str(reg.count_write)
         text_cell.action = self.action_id_to_name[reg.action]
-        if reg.action_kwargs:
-            text_cell.action = f"{text_cell.action}({reg.action_kwargs})"
+        if reg.action_parameters:
+            text_cell.action = f"{text_cell.action}({reg.action_parameters})"
         if reg.type in (CellType.INVALID, CellType.UINT16, CellType.NEXT):
             text_cell.value = str(reg.value)
             build_len = 0
@@ -539,7 +542,7 @@ class ModbusSimulatorContext:
         i = address
         while i < end_address:
             reg = self.registers[i]
-            if fx_write and not reg.access or reg.type == CellType.INVALID:
+            if (fx_write and not reg.access) or reg.type == CellType.INVALID:
                 return False
             if not self.type_exception:
                 i += 1
@@ -581,14 +584,16 @@ class ModbusSimulatorContext:
 
         :meta private:
         """
+        if not self.validate(func_code, address, count):
+            return 2
         result = []
         if func_code not in self._bits_func_code:
             real_address = self.fc_offset[func_code] + address
             for i in range(real_address, real_address + count):
                 reg = self.registers[i]
-                kwargs = reg.action_kwargs if reg.action_kwargs else {}
+                parameters = reg.action_parameters if reg.action_parameters else {}
                 if reg.action:
-                    self.action_methods[reg.action](self.registers, i, reg, **kwargs)
+                    self.action_methods[reg.action](self.registers, i, reg, **parameters)
                 self.registers[i].count_read += 1
                 result.append(reg.value)
         else:
@@ -599,8 +604,9 @@ class ModbusSimulatorContext:
             for i in range(real_address, real_address + reg_count):
                 reg = self.registers[i]
                 if reg.action:
+                    parameters = reg.action_parameters or {}
                     self.action_methods[reg.action](
-                        self.registers, i, reg, reg.action_kwargs
+                        self.registers, i, reg, **parameters
                     )
                 self.registers[i].count_read += 1
                 while count and bit_index < 16:
@@ -618,15 +624,20 @@ class ModbusSimulatorContext:
         if func_code not in self._bits_func_code:
             real_address = self.fc_offset[func_code] + address
             for value in values:
+                if not self.validate(func_code, address):
+                    return 2
                 self.registers[real_address].value = value
                 self.registers[real_address].count_write += 1
                 real_address += 1
-            return
+                address += 1
+            return None
 
         # bit access
         real_address = self.fc_offset[func_code] + int(address / 16)
         bit_index = address % 16
         for value in values:
+            if not self.validate(func_code, address):
+                return 2
             bit_mask = 2**bit_index
             if bool(value):
                 self.registers[real_address].value |= bit_mask
@@ -637,7 +648,8 @@ class ModbusSimulatorContext:
             if bit_index == 16:
                 bit_index = 0
                 real_address += 1
-        return
+                address += 1
+        return None
 
     # --------------------------------------------
     # Internal action methods
@@ -703,7 +715,7 @@ class ModbusSimulatorContext:
             reg2.value = new_regs[1]
 
     @classmethod
-    def action_timestamp(cls, registers, inx, _cell, **_kwargs):
+    def action_timestamp(cls, registers, inx, _cell, **_parameters):
         """Set current time.
 
         :meta private:
@@ -718,7 +730,7 @@ class ModbusSimulatorContext:
         registers[inx + 6].value = system_time.second
 
     @classmethod
-    def action_reset(cls, _registers, _inx, _cell, **_kwargs):
+    def action_reset(cls, _registers, _inx, _cell, **_parameters):
         """Reboot server.
 
         :meta private:
@@ -726,7 +738,7 @@ class ModbusSimulatorContext:
         raise RuntimeError("RESET server")
 
     @classmethod
-    def action_uptime(cls, registers, inx, cell, **_kwargs):
+    def action_uptime(cls, registers, inx, cell, **_parameters):
         """Return uptime in seconds.
 
         :meta private:
@@ -747,32 +759,6 @@ class ModbusSimulatorContext:
     # --------------------------------------------
     # Internal helper methods
     # --------------------------------------------
-
-    def validate_type(self, func_code, real_address, count) -> bool:
-        """Check if request is done against correct type.
-
-        :meta private:
-        """
-        check: tuple
-        if func_code in self._bits_func_code:
-            # Bit access
-            check = (CellType.BITS, -1)
-            reg_step = 1
-        elif count % 2:
-            # 16 bit access
-            check = (CellType.UINT16, CellType.STRING)
-            reg_step = 1
-        else:
-            check = (CellType.UINT32, CellType.FLOAT32, CellType.STRING)
-            reg_step = 2
-
-        for i in range(real_address, real_address + count, reg_step):
-            if self.registers[i].type in check:
-                continue
-            if self.registers[i].type is CellType.NEXT:
-                continue
-            return False
-        return True
 
     @classmethod
     def build_registers_from_value(cls, value, is_int):

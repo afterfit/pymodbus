@@ -22,15 +22,14 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: OS Independent",
     "Operating System :: Microsoft",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Networking",
     "Topic :: Utilities",
 ]
-requires-python = ">=3.8.0"
+requires-python = ">=3.10.0"
 
 [project.urls]
 Homepage = "https://github.com/pymodbus-dev/pymodbus/"
@@ -47,32 +46,33 @@ serial = [
     "pyserial>=3.5"
 ]
 repl = [
-   "pymodbus-repl>=2.0.3"
+   "pymodbus-repl>=2.0.4"
 ]
 
 simulator = [
     "aiohttp>=3.8.6;python_version<'3.12'",
-    "aiohttp>=3.9.0b0;python_version=='3.12'"
+    "aiohttp>=3.10.6;python_version>='3.12'"
 ]
 documentation = [
     "recommonmark>=0.7.1",
-    "Sphinx>=5.3.0",
-    "sphinx-rtd-theme>=1.1.1"
+    "Sphinx>=7.3.7",
+    "sphinx-rtd-theme>=2.0.0"
 ]
 development = [
-    "build>=1.1.1",
-    "codespell>=2.2.6",
-    "coverage>=7.4.3",
-    "mypy>=1.9.0",
-    "pylint>=3.1.0",
-    "pytest>=8.1.0",
-    "pytest-asyncio>=0.23.5.post1",
-    "pytest-cov>=4.1.0",
-    "pytest-profiling>=1.7.0",
+    "build>=1.2.2",
+    "codespell>=2.3.0",
+    "coverage>=7.6.1",
+    "mypy>=1.11.2",
+    "pylint>=3.3.0",
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-profiling>=1.7.0;python_version<'3.13'",
     "pytest-timeout>=2.3.1",
-    "pytest-xdist>=3.5.0",
-    "ruff>=0.3.3",
-    "twine>=5.0.0",
+    "pytest-xdist>=3.6.1",
+    "pytest-aiohttp>=1.0.5",
+    "ruff>=0.8.2",
+    "twine>=5.1.1",
     "types-Pygments",
     "types-pyserial"
 ]
@@ -129,7 +129,7 @@ load-plugins = [
     "pylint.extensions.typing"
 ]
 jobs = "0"
-py-version = "3.8"
+py-version = "3.9"
 
 [tool.pylint.messages_control]
 enable = "all"
@@ -159,11 +159,13 @@ max-module-lines = "2000"
 
 [tool.pylint.basic]
 good-names = "i,j,k,rr,fc,rq,fd,x,_"
-attr-rgx = "([A-Za-z_][A-Za-z0-9_]{2,30}|(__.*__))$"
+attr-rgx = "([A-Za-z_][A-Za-z0-9_]{1,30}|(__.*__))$"
 method-rgx = "[a-z_][a-zA-Z0-9_]{2,}$"
+function-rgx = "[A-Za-z_][A-Za-z0-9_]{2,}$"
 
 [tool.pylint.design]
-max-args = "10"
+max-positional = 15
+max-args = 10
 max-locals = "25"
 max-returns = "11"
 max-branches = "27"
@@ -184,6 +186,7 @@ overgeneral-exceptions = "builtins.Exception"
 bad-functions = "map,input"
 
 [tool.mypy]
+exclude = '/contrib/'
 strict_optional = true
 show_error_codes = true
 local_partial_types = true
@@ -216,8 +219,9 @@ all_files = "1"
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
-addopts = "--cov-report html --durations=10 --dist loadscope --numprocesses auto"
+addopts = "--cov-report html --durations=3 --dist loadscope --numprocesses auto"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 timeout = 120
 
 [tool.coverage.run]
@@ -240,7 +244,7 @@ exclude_also = [
     "if __name__ == .__main__.:",
     ]
 skip_covered = true
-fail_under = 90.0
+fail_under = 92.0
 
 [tool.coverage.html]
 directory = "build/cov"
@@ -251,11 +255,8 @@ skip = "./build,./doc/source/_static,venv,.venv,.git,htmlcov,CHANGELOG.rst,.mypy
 ignore-words-list = "asend"
 
 [tool.ruff]
-target-version="py38"
-exclude = [
-    "venv",
-    ".venv",
-    ".git",
+target-version="py39"
+extend-exclude = [
     "build",
     "doc",
     "contrib"

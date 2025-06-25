@@ -15,7 +15,7 @@ It is allowed to have multiple client objects that e.g. each communicate with a 
 
 Client performance
 ------------------
-There are currently a big performance gab between the 2 clients
+There are currently a big performance gap between the 2 clients
 (try it on your computer :github:`examples/client_performance.py`).
 This is due to a rather old implementation of the synchronous client, we are currently working to update the client code.
 Our aim is to achieve a similar data rate with both clients and at least double the data rate while keeping the stability.
@@ -55,9 +55,9 @@ Pymodbus offers clients with transport different protocols and different framers
      - ASCII
      - RTU
      - RTU_OVER_TCP
-     - Socket
+     - SOCKET
      - TLS
-   * - Serial (RS-485)
+   * - SERIAL (RS-485)
      - Yes
      - Yes
      - No
@@ -118,30 +118,43 @@ that a device have received the packet.
 Client usage
 ------------
 Using pymodbus client to set/get information from a device (server)
-is done in a few simple steps, like the following synchronous example::
+is done in a few simple steps.
+
+Synchronous example
+^^^^^^^^^^^^^^^^^^^
+
+::
 
     from pymodbus.client import ModbusTcpClient
 
     client = ModbusTcpClient('MyDevice.lan')   # Create client object
-    client.connect()                           # connect to device, reconnect automatically
+    client.connect()                           # connect to device
     client.write_coil(1, True, slave=1)        # set information in device
     result = client.read_coils(2, 3, slave=1)  # get information from device
     print(result.bits[0])                      # use information
     client.close()                             # Disconnect device
 
+The line :mod:`client.connect()` connects to the device (or comm port). If this cannot connect successfully within
+the timeout it throws an exception. After this initial connection, further
+calls to the same client (here, :mod:`client.write_coil(...)` and
+:mod:`client.read_coils(...)` ) will check whether the client is still
+connected, and automatically reconnect if not.
 
-and a asynchronous example::
+Asynchronous example
+^^^^^^^^^^^^^^^^^^^^
 
-    from pymodbus.client import ModbusAsyncTcpClient
+::
 
-    client = ModbusAsyncTcpClient('MyDevice.lan')    # Create client object
+    from pymodbus.client import AsyncModbusTcpClient
+
+    client = AsyncModbusTcpClient('MyDevice.lan')    # Create client object
     await client.connect()                           # connect to device, reconnect automatically
     await client.write_coil(1, True, slave=1)        # set information in device
     result = await client.read_coils(2, 3, slave=1)  # get information from device
     print(result.bits[0])                            # use information
     client.close()                                   # Disconnect device
 
-The line :mod:`client = ModbusAsyncTcpClient('MyDevice.lan')` only creates the object it does not activate
+The line :mod:`client = AsyncModbusTcpClient('MyDevice.lan')` only creates the object; it does not activate
 anything.
 
 The line :mod:`await client.connect()` connects to the device (or comm port), if this cannot connect successfully within
@@ -152,6 +165,17 @@ The line :mod:`await client.write_coil(1, True, slave=1)` is an example of a wri
 The line :mod:`result = await client.read_coils(2, 3, slave=1)` is an example of a read request, get the value of address 2, 3 and 4 (count = 3) from device 1 (slave).
 
 The last line :mod:`client.close()` closes the connection and render the object inactive.
+
+Retry logic for async clients
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If no response is received to a request (call), it is retried (parameter retries) times, if not successful
+an exception response is returned, BUT the connection is not touched.
+
+If 3 consequitve requests (calls) do not receive a response, the connection is terminated.
+
+Development notes
+^^^^^^^^^^^^^^^^^
 
 Large parts of the implementation are shared between the different classes,
 to ensure high stability and efficient maintenance.
@@ -170,18 +194,19 @@ Client device addressing
 ------------------------
 
 With **TCP**, **TLS** and **UDP**, the tcp/ip address of the physical device is defined when creating the object.
-The logical devices represented by the device is addressed with the :mod:`slave=` parameter.
+Logical devices represented by the device is addressed with the :mod:`slave=` parameter.
 
 With **Serial**, the comm port is defined when creating the object.
 The physical devices are addressed with the :mod:`slave=` parameter.
 
-:mod:`slave=0` is used as broadcast in order to address all devices.
-However experience shows that modern devices do not allow broadcast, mostly because it is
-inheriently dangerous. With :mod:`slave=0` the application can get upto 254 responses on a single request!
+:mod:`slave=0` is defined as broadcast in the modbus standard, but pymodbus treats it as a normal device.
+please note :mod:`slave=0` can only be used to address devices that truly have id=0 ! Using :mod:`slave=0` to
+address a single device with id not 0 is against the protocol.
 
-The simple request calls (mixin) do NOT support broadcast, if an application wants to use broadcast
-it must call :mod:`client.execute` and deal with the responses.
+If an application is expecting multiple responses to a broadcast request, it must call :mod:`client.execute` and deal with the responses.
 
+If no response is expected to a request, the :mod:`no_response_expected=True` argument can be used
+in the normal API calls, this will cause the call to return immediately with :mod:`ExceptionResponse(0xff)`.
 
 
 Client response handling
@@ -201,7 +226,7 @@ The application should evaluate the result generically::
         raise ModbusException(txt)
 
 :mod:`except ModbusException as exc:` happens generally when pymodbus experiences an internal error.
-There are a few situation where a unexpected response from a device can cause an exception.
+There are a few situation where an unexpected response from a device can cause an exception.
 
 :mod:`rr.isError()` is set whenever the device reports a problem.
 
@@ -210,6 +235,7 @@ And in case of read retrieve the data depending on type of request
 - :mod:`rr.bits` is set for coils / input_register requests
 - :mod:`rr.registers` is set for other requests
 
+Remark if using :mod:`no_response_expected=True` rr will always be None.
 
 Client interface classes
 ------------------------
@@ -230,6 +256,20 @@ There are a client class for each type of communication and for asynchronous/syn
    * - **UDP**
      - :mod:`AsyncModbusUdpClient`
      - :mod:`ModbusUdpClient`
+
+Client common
+^^^^^^^^^^^^^
+Some methods are common to all clients:
+
+.. autoclass:: pymodbus.client.base.ModbusBaseClient
+    :members:
+    :member-order: bysource
+    :show-inheritance:
+
+.. autoclass:: pymodbus.client.base.ModbusBaseSyncClient
+    :members:
+    :member-order: bysource
+    :show-inheritance:
 
 Client serial
 ^^^^^^^^^^^^^
@@ -285,7 +325,7 @@ Modbus calls
 
 Pymodbus makes all standard modbus requests/responses available as simple calls.
 
-Using Modbus<transport>Client.register() custom messagees can be added to pymodbus,
+Using Modbus<transport>Client.register() custom messages can be added to pymodbus,
 and handled automatically.
 
 .. autoclass:: pymodbus.client.mixin.ModbusClientMixin

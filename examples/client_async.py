@@ -4,7 +4,7 @@
 usage::
 
     client_async.py [-h] [-c {tcp,udp,serial,tls}]
-                    [-f {ascii,binary,rtu,socket,tls}]
+                    [-f {ascii,rtu,socket,tls}]
                     [-l {critical,error,warning,info,debug}] [-p PORT]
                     [--baudrate BAUDRATE] [--host HOST]
 
@@ -12,7 +12,7 @@ usage::
         show this help message and exit
     -c, -comm {tcp,udp,serial,tls}
         set communication, default is tcp
-    -f, --framer {ascii,binary,rtu,socket,tls}
+    -f, --framer {ascii,rtu,socket,tls}
         set framer, default depends on --comm
     -l, --log {critical,error,warning,info,debug}
         set log level, default is info
@@ -26,25 +26,35 @@ usage::
 The corresponding server must be started before e.g. as:
     python3 server_sync.py
 """
+from __future__ import annotations
+
 import asyncio
 import logging
+import sys
 
-import helper
+
+try:
+    import helper  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 import pymodbus.client as modbusClient
-from pymodbus import ModbusException
 
 
 _logger = logging.getLogger(__file__)
 _logger.setLevel("DEBUG")
 
 
-def setup_async_client(description=None, cmdline=None):
+def setup_async_client(description: str | None =None, cmdline: str | None = None) -> modbusClient.ModbusBaseClient:
     """Run client setup."""
     args = helper.get_commandline(
         server=False, description=description, cmdline=cmdline
     )
     _logger.info("### Create client object")
+    client: modbusClient.ModbusBaseClient | None = None
     if args.comm == "tcp":
         client = modbusClient.AsyncModbusTcpClient(
             args.host,
@@ -55,8 +65,6 @@ def setup_async_client(description=None, cmdline=None):
             retries=3,
             reconnect_delay=1,
             reconnect_delay_max=10,
-            #    retry_on_empty=False,
-            # TCP setup parameters
             #    source_address=("localhost", 0),
         )
     elif args.comm == "udp":
@@ -67,7 +75,6 @@ def setup_async_client(description=None, cmdline=None):
             framer=args.framer,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
             # UDP setup parameters
             #    source_address=None,
         )
@@ -75,17 +82,15 @@ def setup_async_client(description=None, cmdline=None):
         client = modbusClient.AsyncModbusSerialClient(
             args.port,
             # Common optional parameters:
-            #    framer=ModbusRtuFramer,
+            #    framer=FramerType.RTU,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
             # Serial setup parameters
             baudrate=args.baudrate,
             #    bytesize=8,
             #    parity="N",
             #    stopbits=1,
             #    handle_local_echo=False,
-            #    strict=True,
         )
     elif args.comm == "tls":
         client = modbusClient.AsyncModbusTlsClient(
@@ -95,14 +100,15 @@ def setup_async_client(description=None, cmdline=None):
             framer=args.framer,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
             # TLS setup parameters
-            #    sslctx=sslctx,
-            certfile=helper.get_certificate("crt"),
-            keyfile=helper.get_certificate("key"),
+            sslctx=modbusClient.AsyncModbusTlsClient.generate_ssl(
+                certfile=helper.get_certificate("crt"),
+                keyfile=helper.get_certificate("key"),
             #    password="none",
-            server_hostname="localhost",
+            ),
         )
+    else:
+        raise RuntimeError(f"Unknown commtype {args.comm}")
     return client
 
 
@@ -119,15 +125,11 @@ async def run_async_client(client, modbus_calls=None):
 
 async def run_a_few_calls(client):
     """Test connection works."""
-    try:
-        rr = await client.read_coils(32, 1, slave=1)
-        assert len(rr.bits) == 8
-        rr = await client.read_holding_registers(4, 2, slave=1)
-        assert rr.registers[0] == 17
-        assert rr.registers[1] == 17
-    except ModbusException:
-        pass
-
+    rr = await client.read_coils(32, count=1, slave=1)
+    assert len(rr.bits) == 8
+    rr = await client.read_holding_registers(4, count=2, slave=1)
+    assert rr.registers[0] == 17
+    assert rr.registers[1] == 17
 
 async def main(cmdline=None):
     """Combine setup and run."""

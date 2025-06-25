@@ -45,11 +45,11 @@ There are 4 functions which can be modified to test the client/server functional
 from __future__ import annotations
 
 import asyncio
-from typing import Callable
+from collections.abc import Callable
 
 import pymodbus.client as modbusClient
 import pymodbus.server as modbusServer
-from pymodbus import Framer, ModbusException, pymodbus_apply_logging_config
+from pymodbus import FramerType, ModbusException, pymodbus_apply_logging_config
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
     ModbusServerContext,
@@ -67,7 +67,7 @@ class TransportStub(ModbusProtocol):
         self,
         params: CommParams,
         is_server: bool,
-        handler: Callable[[bytes], bytes],
+        handler: Callable[[ModbusProtocol, bool, bytes], None],
     ) -> None:
         """Initialize a stub instance."""
         self.stub_handle_data = handler
@@ -109,7 +109,7 @@ class ClientTester:  # pylint: disable=too-few-public-methods
         global test_port  # pylint: disable=global-statement
         self.comm = comm
         host = NULLMODEM_HOST
-
+        self.client: modbusClient.AsyncModbusTcpClient | modbusClient.AsyncModbusSerialClient
         if comm == CommType.TCP:
             self.client = modbusClient.AsyncModbusTcpClient(
                         host,
@@ -122,7 +122,7 @@ class ClientTester:  # pylint: disable=too-few-public-methods
             )
         else:
             raise RuntimeError("ERROR: CommType not implemented")
-        server_params = self.client.comm_params.copy()
+        server_params = self.client.ctx.comm_params.copy()
         server_params.source_address = (host, test_port)
         self.stub = TransportStub(server_params, True, simulate_server)
         test_port += 1
@@ -157,25 +157,27 @@ class ServerTester:  # pylint: disable=too-few-public-methods
         self.identity = ModbusDeviceIdentification(
             info_name={"VendorName": "VendorName"}
         )
+        self.server: modbusServer.ModbusTcpServer | modbusServer.ModbusSerialServer
         if comm == CommType.TCP:
             self.server = modbusServer.ModbusTcpServer(
                 self.context,
-                framer=Framer.SOCKET,
+                framer=FramerType.SOCKET,
                 identity=self.identity,
                 address=(NULLMODEM_HOST, test_port),
             )
         elif comm == CommType.SERIAL:
             self.server = modbusServer.ModbusSerialServer(
                 self.context,
-                framer=Framer.SOCKET,
+                framer=FramerType.SOCKET,
                 identity=self.identity,
                 port=f"{NULLMODEM_HOST}:{test_port}",
             )
         else:
             raise RuntimeError("ERROR: CommType not implemented")
         client_params = self.server.comm_params.copy()
-        client_params.host = client_params.source_address[0]
-        client_params.port = client_params.source_address[1]
+        if client_params.source_address:
+            client_params.host = client_params.source_address[0]
+            client_params.port = client_params.source_address[1]
         client_params.timeout_connect = 1.0
         self.stub = TransportStub(client_params, False, simulate_client)
         test_port += 1
@@ -194,6 +196,7 @@ class ServerTester:  # pylint: disable=too-few-public-methods
 
 async def main(comm: CommType, use_server: bool):
     """Combine setup and run."""
+    test: ServerTester | ClientTester
     if use_server:
         test = ServerTester(comm)
     else:
@@ -207,7 +210,7 @@ async def client_calls(client):
     """Test client API."""
     Log.debug("--> Client calls starting.")
     try:
-        resp = await client.read_holding_registers(address=124, count=4, slave=0)
+        resp = await client.read_holding_registers(address=124, count=4, slave=1)
     except ModbusException as exc:
         txt = f"ERROR: exception in pymodbus {exc}"
         Log.error(txt)

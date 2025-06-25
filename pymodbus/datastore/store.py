@@ -48,7 +48,8 @@ based on their preference.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, Iterable, TypeVar
+from collections.abc import Iterable
+from typing import Any, Generic, TypeVar
 
 from pymodbus.exceptions import ParameterException
 
@@ -57,7 +58,7 @@ from pymodbus.exceptions import ParameterException
 #  Datablock Storage
 # ---------------------------------------------------------------------------#
 
-V = TypeVar('V', list, Dict[int, Any])
+V = TypeVar('V', list, dict[int, Any])
 class BaseModbusDataBlock(ABC, Generic[V]):
     """Base class for a modbus datastore.
 
@@ -67,24 +68,28 @@ class BaseModbusDataBlock(ABC, Generic[V]):
             @values The actual datastore values
 
     Derived classes must implemented the following methods:
-            validate(self, address, count=1)
             getValues(self, address, count=1)
             setValues(self, address, values)
             reset(self)
+
+    Derived classes can implemented the following async methods:
+            async_getValues(self, address, count=1)
+            async_setValues(self, address, values)
+    but are not needed since these standard call the sync. methods.
     """
 
     values: V
     address: int
     default_value: Any
 
-    @abstractmethod
-    def validate(self, address:int, count=1) -> bool:
-        """Check to see if the request is in range.
+    async def async_getValues(self, address: int, count=1) -> Iterable:
+        """Return the requested values from the datastore.
 
         :param address: The starting address
-        :param count: The number of values to test for
+        :param count: The number of values to retrieve
         :raises TypeError:
         """
+        return self.getValues(address, count)
 
     @abstractmethod
     def getValues(self, address:int, count=1) -> Iterable:
@@ -95,9 +100,18 @@ class BaseModbusDataBlock(ABC, Generic[V]):
         :raises TypeError:
         """
 
+    async def async_setValues(self, address: int, values: list[int|bool]) -> None:
+        """Set the requested values in the datastore.
+
+        :param address: The starting address
+        :param values: The values to store
+        :raises TypeError:
+        """
+        self.setValues(address, values)
+
     @abstractmethod
     def setValues(self, address:int, values) -> None:
-        """Return the requested values from the datastore.
+        """Set the requested values in the datastore.
 
         :param address: The starting address
         :param values: The values to store
@@ -161,17 +175,6 @@ class ModbusSequentialDataBlock(BaseModbusDataBlock[list]):
         """Reset the datastore to the initialized default value."""
         self.values = [self.default_value] * len(self.values)
 
-    def validate(self, address, count=1):
-        """Check to see if the request is in range.
-
-        :param address: The starting address
-        :param count: The number of values to test for
-        :returns: True if the request in within range, False otherwise
-        """
-        result = self.address <= address
-        result &= (self.address + len(self.values)) >= (address + count)
-        return result
-
     def getValues(self, address, count=1):
         """Return the requested values of the datastore.
 
@@ -194,7 +197,7 @@ class ModbusSequentialDataBlock(BaseModbusDataBlock[list]):
         self.values[start : start + len(values)] = values
 
 
-class ModbusSparseDataBlock(BaseModbusDataBlock[Dict[int, Any]]):
+class ModbusSparseDataBlock(BaseModbusDataBlock[dict[int, Any]]):
     """A sparse modbus datastore.
 
     E.g Usage.
@@ -249,18 +252,6 @@ class ModbusSparseDataBlock(BaseModbusDataBlock[Dict[int, Any]]):
     def reset(self):
         """Reset the store to the initially provided defaults."""
         self.values = self.default_value.copy()
-
-    def validate(self, address, count=1):
-        """Check to see if the request is in range.
-
-        :param address: The starting address
-        :param count: The number of values to test for
-        :returns: True if the request in within range, False otherwise
-        """
-        if not count:
-            return False
-        handle = set(range(address, address + count))
-        return handle.issubset(set(iter(self.values.keys())))
 
     def getValues(self, address, count=1):
         """Return the requested values of the datastore.

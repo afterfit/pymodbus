@@ -1,5 +1,5 @@
-Server
-======
+Server (3.x)
+============
 
 Pymodbus offers servers with transport protocols for
 
@@ -18,6 +18,7 @@ communication in 2 versions:
 synchronous servers are just an interface layer allowing synchronous
 applications to use the server as if it was synchronous.
 
+*Warning* The current framer implementation does not support running the server on a shared rs485 line (multipoint).
 
 .. automodule:: pymodbus.server
     :members:

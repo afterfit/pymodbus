@@ -6,7 +6,7 @@ An example of a single threaded synchronous client.
 usage::
 
     client_sync.py [-h] [-c {tcp,udp,serial,tls}]
-                    [-f {ascii,binary,rtu,socket,tls}]
+                    [-f {ascii,rtu,socket,tls}]
                     [-l {critical,error,warning,info,debug}] [-p PORT]
                     [--baudrate BAUDRATE] [--host HOST]
 
@@ -14,7 +14,7 @@ usage::
         show this help message and exit
     -c, --comm {tcp,udp,serial,tls}
         set communication, default is tcp
-    -f, --framer {ascii,binary,rtu,socket,tls}
+    -f, --framer {ascii,rtu,socket,tls}
         set framer, default depends on --comm
     -l, --log {critical,error,warning,info,debug}
         set log level, default is info
@@ -30,9 +30,19 @@ The corresponding server must be started before e.g. as:
     python3 server_sync.py
 
 """
-import logging
+from __future__ import annotations
 
-import helper
+import logging
+import sys
+
+
+try:
+    import helper  # type: ignore[import-not-found]
+except ImportError:
+    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+          https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
+          for more information.")
+    sys.exit(-1)
 
 import pymodbus.client as modbusClient
 from pymodbus import ModbusException
@@ -50,6 +60,7 @@ def setup_sync_client(description=None, cmdline=None):
         cmdline=cmdline,
     )
     _logger.info("### Create client object")
+    client: modbusClient.ModbusBaseSyncClient | None = None
     if args.comm == "tcp":
         client = modbusClient.ModbusTcpClient(
             args.host,
@@ -58,8 +69,6 @@ def setup_sync_client(description=None, cmdline=None):
             framer=args.framer,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,y
-            #    strict=True,
             # TCP setup parameters
             #    source_address=("localhost", 0),
         )
@@ -71,8 +80,6 @@ def setup_sync_client(description=None, cmdline=None):
             framer=args.framer,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
-            #    strict=True,
             # UDP setup parameters
             #    source_address=None,
         )
@@ -80,18 +87,15 @@ def setup_sync_client(description=None, cmdline=None):
         client = modbusClient.ModbusSerialClient(
             port=args.port,  # serial port
             # Common optional parameters:
-            #    framer=ModbusRtuFramer,
+            #    framer=FramerType.RTU,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
-            #    strict=True,
             # Serial setup parameters
             baudrate=args.baudrate,
             #    bytesize=8,
             #    parity="N",
             #    stopbits=1,
             #    handle_local_echo=False,
-            #    strict=True,
         )
     elif args.comm == "tls":
         client = modbusClient.ModbusTlsClient(
@@ -101,13 +105,12 @@ def setup_sync_client(description=None, cmdline=None):
             framer=args.framer,
             timeout=args.timeout,
             #    retries=3,
-            #    retry_on_empty=False,
             # TLS setup parameters
-            #    sslctx=None,
-            certfile=helper.get_certificate("crt"),
-            keyfile=helper.get_certificate("key"),
+            sslctx=modbusClient.ModbusTlsClient.generate_ssl(
+                certfile=helper.get_certificate("crt"),
+                keyfile=helper.get_certificate("key"),
             #    password=None,
-            server_hostname="localhost",
+            ),
         )
     return client
 
@@ -125,9 +128,9 @@ def run_sync_client(client, modbus_calls=None):
 def run_a_few_calls(client):
     """Test connection works."""
     try:
-        rr = client.read_coils(32, 1, slave=1)
+        rr = client.read_coils(32, count=1, slave=1)
         assert len(rr.bits) == 8
-        rr = client.read_holding_registers(4, 2, slave=1)
+        rr = client.read_holding_registers(4, count=2, slave=1)
         assert rr.registers[0] == 17
         assert rr.registers[1] == 17
     except ModbusException as exc:
