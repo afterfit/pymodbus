@@ -8,7 +8,7 @@ usage::
     server_sync.py [-h] [--comm {tcp,udp,serial,tls}]
                    [--framer {ascii,rtu,socket,tls}]
                    [--log {critical,error,warning,info,debug}]
-                   [--port PORT] [--store {sequential,sparse,factory,none}]
+                   [--port PORT]
                    [--device_ids DEVICE_IDS]
 
     -h, --help
@@ -22,8 +22,6 @@ usage::
     -p, --port PORT
         set port
         set serial device baud rate
-    --store {sequential,sparse,factory,none}
-        set datastore type
     --device_ids DEVICE_IDS
         set list of devices to respond to
 
@@ -42,7 +40,7 @@ try:
     import helper  # type: ignore[import-not-found]
     import server_async  # type: ignore[import-not-found]
 except ImportError:
-    print("*** ERROR --> THIS EXAMPLE needs the example directory, please see \n\
+    print("*** ERROR --> THIS EXAMPLE needs to be run in the example directory, please see \n\
           https://pymodbus.readthedocs.io/en/latest/source/examples.html\n\
           for more information.")
     sys.exit(-1)
