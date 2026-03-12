@@ -59,7 +59,6 @@ from pymodbus.server import (
 
 
 _logger = logging.getLogger(__name__)
-_logger.setLevel("DEBUG")
 
 
 def run_sync_server(args) -> None:
