@@ -338,6 +338,7 @@ class ModbusBaseSyncClient(ModbusClientMixin[ModbusResponse]):
             parity=kwargs.get("parity", None),
             stopbits=kwargs.get("stopbits", None),
             handle_local_echo=kwargs.get("handle_local_echo", False),
+            rs485_settings=kwargs.get("rs485_settings", None),
         )
         self.params = self._params()
         self.params.retries = int(retries)

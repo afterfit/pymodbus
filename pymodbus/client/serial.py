@@ -16,7 +16,7 @@ from pymodbus.utilities import ModbusTransactionState
 
 try:
     import serial
-    from serial.rs485 import RS485Settings
+    from serial.rs485 import RS485Settings, RS485
     PYSERIAL_MISSING = False
 except ImportError:
     PYSERIAL_MISSING = True
@@ -211,15 +211,36 @@ class ModbusSerialClient(ModbusBaseSyncClient):
         if self.socket:
             return True
         try:
-            self.socket = serial.serial_for_url(
-                self.comm_params.host,
-                timeout=self.comm_params.timeout_connect,
-                bytesize=self.comm_params.bytesize,
-                stopbits=self.comm_params.stopbits,
-                baudrate=self.comm_params.baudrate,
-                parity=self.comm_params.parity,
-                exclusive=True,
-            )
+            # RS485 class is required (instead of Serial class) in case of Contec BXC200 device to use
+            # CPS-COM-PD2 for ModbusRTU communication.
+            # NOTE : This is not a fix for all device. It is intended to make CPS-COM-PD2 ModbusRTU 
+            # to work in synchronous manner (as of now the asynchronous way is already developed and 
+            # working as intended).
+
+            if self.comm_params.rs485_settings is not None:
+                self.socket = RS485(
+                    port=self.comm_params.host,
+                    timeout=self.comm_params.timeout_connect,
+                    bytesize=self.comm_params.bytesize,
+                    stopbits=self.comm_params.stopbits,
+                    baudrate=self.comm_params.baudrate,
+                    parity=self.comm_params.parity,
+                    exclusive=True,
+                )
+
+                # Is required
+                self.socket.rs485_mode = self.comm_params.rs485_settings
+            else:
+                self.socket = serial.serial_for_url(
+                    self.comm_params.host,
+                    timeout=self.comm_params.timeout_connect,
+                    bytesize=self.comm_params.bytesize,
+                    stopbits=self.comm_params.stopbits,
+                    baudrate=self.comm_params.baudrate,
+                    parity=self.comm_params.parity,
+                    exclusive=True,
+                )
+
             if self.strict:
                 self.socket.inter_byte_timeout = self.inter_byte_timeout
             self.last_frame_end = None
