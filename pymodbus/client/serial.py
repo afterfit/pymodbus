@@ -17,7 +17,7 @@ from .base import ModbusBaseClient, ModbusBaseSyncClient
 
 with contextlib.suppress(ImportError):
     import serial
-
+    from serial.rs485 import RS485Settings, RS485
 
 class AsyncModbusSerialClient(ModbusBaseClient):
     """**AsyncModbusSerialClient**.
@@ -38,6 +38,12 @@ class AsyncModbusSerialClient(ModbusBaseClient):
     :param reconnect_delay: Minimum delay when reconnecting, in seconds (use decimals for milliseconds).
     :param reconnect_delay_max: Maximum delay when reconnecting, in seconds (use decimals for milliseconds).
     :param timeout: Timeout for connecting and receiving data, in seconds (use decimals for milliseconds).
+    :param rs485_settings: Allow configuring the underlying serial port for RS485 mode.
+
+    Common optional parameters:
+
+    :param framer: Framer enum name
+    :param timeout: Timeout for a request, in seconds.
     :param retries: Max number of retries per request.
     :param trace_packet: Called with bytestream received/to be sent
     :param trace_pdu: Called with PDU received/to be sent
@@ -83,6 +89,7 @@ class AsyncModbusSerialClient(ModbusBaseClient):
         trace_packet: Callable[[bool, bytes], bytes] | None = None,
         trace_pdu: Callable[[bool, ModbusPDU], ModbusPDU] | None = None,
         trace_connect: Callable[[bool], None] | None = None,
+        rs485_settings: RS485Settings | None = None,
     ) -> None:
         """Initialize Asyncio Modbus Serial Client."""
         if "serial" not in sys.modules:  # pragma: no cover
@@ -104,6 +111,7 @@ class AsyncModbusSerialClient(ModbusBaseClient):
             reconnect_delay=reconnect_delay,
             reconnect_delay_max=reconnect_delay_max,
             timeout_connect=timeout,
+            rs485_settings=rs485_settings,
         )
         ModbusBaseClient.__init__(
             self,
@@ -175,6 +183,8 @@ class ModbusSerialClient(ModbusBaseSyncClient):
         trace_packet: Callable[[bool, bytes], bytes] | None = None,
         trace_pdu: Callable[[bool, ModbusPDU], ModbusPDU] | None = None,
         trace_connect: Callable[[bool], None] | None = None,
+        strict: bool = True,
+        rs485_settings: RS485Settings | None = None,
     ) -> None:
         """Initialize Modbus Serial Client."""
         if "serial" not in sys.modules:  # pragma: no cover
@@ -196,6 +206,7 @@ class ModbusSerialClient(ModbusBaseSyncClient):
             reconnect_delay=reconnect_delay,
             reconnect_delay_max=reconnect_delay_max,
             timeout_connect=timeout,
+            rs485_settings=rs485_settings,
         )
         super().__init__(
             framer,
@@ -227,16 +238,34 @@ class ModbusSerialClient(ModbusBaseSyncClient):
         if self.socket:
             return True
         try:
-            self.socket = serial.serial_for_url(
-                self.comm_params.host,
-                timeout=self.comm_params.timeout_connect,
-                bytesize=self.comm_params.bytesize,
-                stopbits=self.comm_params.stopbits,
-                baudrate=self.comm_params.baudrate,
-                parity=self.comm_params.parity,
-                exclusive=True,
-            )
-            self.socket.inter_byte_timeout = self.inter_byte_timeout
+
+            if self.comm_params.rs485_settings is not None:
+                self.socket = RS485(
+                    port=self.comm_params.host,
+                    timeout=self.comm_params.timeout_connect,
+                    bytesize=self.comm_params.bytesize,
+                    stopbits=self.comm_params.stopbits,
+                    baudrate=self.comm_params.baudrate,
+                    parity=self.comm_params.parity,
+                    exclusive=True,
+                )
+
+                # Is required
+                self.socket.rs485_mode = self.comm_params.rs485_settings
+            else:
+                self.socket = serial.serial_for_url(
+                    self.comm_params.host,
+                    timeout=self.comm_params.timeout_connect,
+                    bytesize=self.comm_params.bytesize,
+                    stopbits=self.comm_params.stopbits,
+                    baudrate=self.comm_params.baudrate,
+                    parity=self.comm_params.parity,
+                    exclusive=True,
+                )
+
+            if self.strict:
+                self.socket.inter_byte_timeout = self.inter_byte_timeout
+            self.last_frame_end = None
         # except serial.SerialException as msg:
         # pyserial raises undocumented exceptions like termios
         except Exception as msg:  # pylint: disable=broad-exception-caught
