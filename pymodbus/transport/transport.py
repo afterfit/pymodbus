@@ -430,7 +430,20 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 "TASKDBG __close CANCEL reconnect_task={} (line417) comm={}",
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
-            self.reconnect_task.cancel()
+            import os as _os
+            _day9 = int(_os.environ.get("EMS_DAY9", "0"))
+            self._cancel_n = getattr(self, "_cancel_n", 0) + 1
+            # DAY9: cancel R1 dau tien cua client SERIAL (= CL2 sau bao) -> KHONG cancel,
+            # arm de do_reconnect ke mo port thanh cong thi raise mid-open (phantom).
+            if _day9 and self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == _day9:
+                from pymodbus.transport import serialtransport as _st
+                _st._day9_armed[0] = True
+                Log.debug(
+                    "TASKDBG DAY9 cancel#{} comm={} -> KHONG cancel R1 (song tiep de storm), arm mid-open raise",
+                    self._cancel_n, self.comm_params.comm_name,
+                )
+            else:
+                self.reconnect_task.cancel()
             self.reconnect_task = None
             self.reconnect_delay_current = 0.0
         if self.listener:
