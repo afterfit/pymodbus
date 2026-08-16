@@ -432,20 +432,11 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
             self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # Tai hien zombie "ngay 9" (branch debug, KHONG MERGE): tai lan cancel dau tien cua
-            # client SERIAL, thay vi cancel reconnect_task thi bat _day9_arm theo comm_name. Task
-            # do_reconnect nao mo duoc port cho client do se tu huy giua chung va bo lai mot phantom
-            # giu port (xem create_serial_connection); task do_reconnect con lai quay vong storm mai.
-            # Xoa nhanh `if` nay de pymodbus chay binh thuong.
-            if self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == 1:
-                import pymodbus.transport.serialtransport as _st
-                _st._day9_arm[0] = self.comm_params.comm_name
-                Log.debug(
-                    "TASKDBG DAY9 cancel#{} comm={} -> bat _day9_arm (phantom tu huy khi mo port)",
-                    self._cancel_n, self.comm_params.comm_name,
-                )
-            else:
-                self.reconnect_task.cancel()
+            # pattern1 = ngay TU PHUC HOI (branch debug, KHONG MERGE). Cancel reconnect_task (= R1:
+            # task do_reconnect dang chay khi close nay xay ra) binh thuong -> R1 chet sach -> R2
+            # (task do_reconnect ma connection_lost spawn ngay sau) chiem lai port -> phuc hoi.
+            # Khac pattern2 (zombie) DUY NHAT o cho nay: pattern2 arm phantom thay vi cancel that.
+            self.reconnect_task.cancel()
             self.reconnect_task = None
             self.reconnect_delay_current = 0.0
         if self.listener:
