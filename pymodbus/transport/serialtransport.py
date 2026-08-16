@@ -9,6 +9,10 @@ import os
 with contextlib.suppress(ImportError):
     import serial
 
+from pymodbus.logging import Log
+
+_raise_fired = [False]  # TASKDBG: one-shot cho EMS_RAISE_DORECONNECT
+
 
 class SerialTransport(asyncio.Transport):
     """An asyncio serial transport."""
@@ -27,6 +31,7 @@ class SerialTransport(asyncio.Transport):
         self._poll_wait_time = 0.0005
         self.sync_serial.timeout = 0
         self.sync_serial.write_timeout = 0
+        Log.debug("TASKDBG SerialTransport OPEN id={} fd={}", id(self) & 0xFFFF, self.sync_serial.fileno())
     
     def _serial_for_args(self, rs485_settings, *args, **kwargs) -> serial.Serial:
         sync_serial: serial.Serial
@@ -51,6 +56,7 @@ class SerialTransport(asyncio.Transport):
         """Close the transport gracefully."""
         if not self.sync_serial:
             return
+        Log.debug("TASKDBG SerialTransport CLOSE id={} fd={}", id(self) & 0xFFFF, self.sync_serial.fileno())
         self.flush()
         if self.poll_task:
             self.poll_task.cancel()
@@ -171,4 +177,23 @@ async def create_serial_connection(
     # transport = SerialTransport(loop, protocol, *args, **kwargs)
     transport = SerialTransport(loop, protocol, rs485_settings, *args, **kwargs)
     loop.call_soon(transport.setup)
+    _hold = os.environ.get("EMS_FREEZE_IN_CONNECT")
+    if _hold:
+        Log.debug(
+            "TASKDBG create_serial_connection HOLD {}s (port OPEN id={} fd={}, AFTER setup scheduled)",
+            _hold, id(transport) & 0xFFFF, transport.sync_serial.fileno(),
+        )
+        await asyncio.sleep(float(_hold))
+    # DEBUG: ep "cancel giua mid-open" cho MOT do_reconnect (port da mo + setup da len lich).
+    # Mo phong dung cu cancel giang xuong R1 ngay sau khi no mo port xong.
+    if os.environ.get("EMS_RAISE_DORECONNECT") and not _raise_fired[0]:
+        _t = asyncio.current_task()
+        if _t is not None and _t.get_name() == "transport reconnect":
+            _raise_fired[0] = True
+            Log.debug(
+                "TASKDBG create_serial_connection RAISE CancelledError (do_reconnect task={} "
+                "transport OPEN id={} fd={} -> mo phong cancel-mid-open)",
+                id(_t) & 0xFFFF, id(transport) & 0xFFFF, transport.sync_serial.fileno(),
+            )
+            raise asyncio.CancelledError
     return transport, protocol

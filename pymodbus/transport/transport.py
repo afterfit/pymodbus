@@ -286,7 +286,15 @@ class ModbusProtocol(asyncio.BaseProtocol):
 
         :param reason: None or an exception object
         """
+        Log.debug(
+            "TASKDBG connection_lost {} transport={} is_closing={} cur_reconnect_task={}",
+            self.comm_params.comm_name,
+            (id(self.transport) & 0xFFFF) if self.transport else None,
+            self.is_closing,
+            (id(self.reconnect_task) & 0xFFFF) if self.reconnect_task else None,
+        )
         if not self.transport or self.is_closing:
+            Log.debug("TASKDBG connection_lost GUARDED-return {}", self.comm_params.comm_name)
             return
         Log.debug("Connection lost {} due to {}", self.comm_params.comm_name, reason)
         self.__close()
@@ -297,6 +305,10 @@ class ModbusProtocol(asyncio.BaseProtocol):
         ):
             self.reconnect_task = asyncio.create_task(self.do_reconnect())
             self.reconnect_task.set_name("transport reconnect")
+            Log.debug(
+                "TASKDBG connection_lost SPAWN reconnect_task={} (line298) comm={}",
+                id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
+            )
         self.callback_disconnected(reason)
 
     def data_received(self, data: bytes) -> None:
@@ -414,6 +426,10 @@ class ModbusProtocol(asyncio.BaseProtocol):
             self.active_connections = {}
             return
         if not reconnect and self.reconnect_task:
+            Log.debug(
+                "TASKDBG __close CANCEL reconnect_task={} (line417) comm={}",
+                id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
+            )
             self.reconnect_task.cancel()
             self.reconnect_task = None
             self.reconnect_delay_current = 0.0
@@ -466,13 +482,18 @@ class ModbusProtocol(asyncio.BaseProtocol):
 
     async def do_reconnect(self) -> None:
         """Handle reconnect as a task."""
+        _t = asyncio.current_task()
+        _me = (id(_t) & 0xFFFF) if _t else None
+        _alive = sum(1 for _t2 in asyncio.all_tasks() if _t2.get_name() == "transport reconnect" and not _t2.done())
+        Log.debug("TASKDBG do_reconnect ENTER task={} alive_reconnect_tasks={} comm={}", _me, _alive, self.comm_params.comm_name)
         try:
             self.reconnect_delay_current = self.comm_params.reconnect_delay or 0.0
             while True:
                 Log.debug(
-                    "Wait {} {} ms before reconnecting.",
+                    "Wait {} {} ms before reconnecting. [task={}]",
                     self.comm_params.comm_name,
                     self.reconnect_delay_current * 1000,
+                    _me,
                 )
                 await asyncio.sleep(self.reconnect_delay_current)
                 if await self.connect():
@@ -482,7 +503,14 @@ class ModbusProtocol(asyncio.BaseProtocol):
                     self.comm_params.reconnect_delay_max,
                 )
         except asyncio.CancelledError:
-            pass
+            Log.debug("TASKDBG do_reconnect CANCELLED task={} comm={}", _me, self.comm_params.comm_name)
+        _cur = (id(self.reconnect_task) & 0xFFFF) if self.reconnect_task else None
+        Log.debug(
+            "TASKDBG do_reconnect EXIT task={} reconnect_task_ref={}{} -> set None (line486) comm={}",
+            _me, _cur,
+            "  <<<< ORPHAN: wiping a DIFFERENT live task!" if (_cur is not None and _cur != _me) else "",
+            self.comm_params.comm_name,
+        )
         self.reconnect_task = None
 
     # ----------------- #
