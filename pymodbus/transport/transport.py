@@ -431,19 +431,16 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
             self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # DAY9 faithful (branch debug, KHONG MERGE): tai lan cancel dau tien cua client SERIAL
-            # (= CL2 sau bao) KHONG cancel R1 truc tiep. Thay vao do ARM co _day9_arm theo comm_name:
-            # do_reconnect nao cua client nay MO duoc port dau tien se TU raise CancelledError NGAY
-            # sau khi mo (mid-open, trong create_serial_connection) -> connection_made van chay =>
-            # self.transport set = PHANTOM "connect thanh cong DU BI cancel" giu port; task con lai
-            # storm mai = zombie ngay 9. Faithful hon skip-cancel (R1 co bi cancel THAT, dung luc
-            # mid-open nhu ngay 9 that). KHONG dung reached.wait() vi __close chay TREN event loop ->
-            # block loop -> opener khong the chay -> deadlock. Bo dong `if` nay de tra ve chuan.
+            # Tai hien zombie "ngay 9" (branch debug, KHONG MERGE): tai lan cancel dau tien cua
+            # client SERIAL, thay vi cancel reconnect_task thi bat _day9_arm theo comm_name. Task
+            # do_reconnect nao mo duoc port cho client do se tu huy giua chung va bo lai mot phantom
+            # giu port (xem create_serial_connection); task do_reconnect con lai quay vong storm mai.
+            # Xoa nhanh `if` nay de pymodbus chay binh thuong.
             if self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == 1:
                 import pymodbus.transport.serialtransport as _st
                 _st._day9_arm[0] = self.comm_params.comm_name
                 Log.debug(
-                    "TASKDBG DAY9 cancel#{} comm={} -> ARM phantom (KHONG cancel R1; opener tu cancel mid-open)",
+                    "TASKDBG DAY9 cancel#{} comm={} -> bat _day9_arm (phantom tu huy khi mo port)",
                     self._cancel_n, self.comm_params.comm_name,
                 )
             else:
