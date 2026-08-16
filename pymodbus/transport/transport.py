@@ -430,12 +430,11 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 "TASKDBG __close CANCEL reconnect_task={} (line417) comm={}",
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
-            import os as _os
-            _day9 = int(_os.environ.get("EMS_DAY9", "0"))
             self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # DAY9 (repro zombie): tai lan cancel dau tien cua client SERIAL (= CL2 sau bao) ->
-            # KHONG cancel R1 -> R1 song tiep => 2 do_reconnect (1 giu port + 1 storm) = ngay 9.
-            if _day9 and self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == _day9:
+            # DAY9 REPRO (hardcoded - branch debug, KHONG MERGE): tai lan cancel dau tien cua
+            # client SERIAL (= CL2 sau bao) -> KHONG cancel R1 -> R1 song tiep => 2 do_reconnect
+            # (1 giu port + 1 storm) = tai hien zombie ngay 9. Bo dong `if` nay de tra ve chuan.
+            if self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == 1:
                 Log.debug(
                     "TASKDBG DAY9 cancel#{} comm={} -> KHONG cancel R1 (song tiep de storm)",
                     self._cancel_n, self.comm_params.comm_name,
