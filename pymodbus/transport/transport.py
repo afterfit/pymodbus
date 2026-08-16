@@ -433,13 +433,11 @@ class ModbusProtocol(asyncio.BaseProtocol):
             import os as _os
             _day9 = int(_os.environ.get("EMS_DAY9", "0"))
             self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # DAY9: cancel R1 dau tien cua client SERIAL (= CL2 sau bao) -> KHONG cancel,
-            # arm de do_reconnect ke mo port thanh cong thi raise mid-open (phantom).
+            # DAY9 (repro zombie): tai lan cancel dau tien cua client SERIAL (= CL2 sau bao) ->
+            # KHONG cancel R1 -> R1 song tiep => 2 do_reconnect (1 giu port + 1 storm) = ngay 9.
             if _day9 and self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == _day9:
-                from pymodbus.transport import serialtransport as _st
-                _st._day9_armed[0] = True
                 Log.debug(
-                    "TASKDBG DAY9 cancel#{} comm={} -> KHONG cancel R1 (song tiep de storm), arm mid-open raise",
+                    "TASKDBG DAY9 cancel#{} comm={} -> KHONG cancel R1 (song tiep de storm)",
                     self._cancel_n, self.comm_params.comm_name,
                 )
             else:
