@@ -517,6 +517,11 @@ class ModbusProtocol(asyncio.BaseProtocol):
                     _me, self.reconnect_delay_current * 1000, self.comm_params.comm_name,
                 )
                 if await self.connect():
+                    Log.debug(
+                        "TASKDBG do_reconnect CONNECTED task={} transport={} -> break comm={}",
+                        _me, (id(self.transport) & 0xFFFF) if self.transport else None,
+                        self.comm_params.comm_name,
+                    )
                     break
                 self.reconnect_delay_current = min(
                     2 * self.reconnect_delay_current,
