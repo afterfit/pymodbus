@@ -530,11 +530,13 @@ class ModbusProtocol(asyncio.BaseProtocol):
         except asyncio.CancelledError:
             Log.debug("TASKDBG do_reconnect CANCELLED task={} comm={}", _me, self.comm_params.comm_name)
         _cur = (id(self.reconnect_task) & 0xFFFF) if self.reconnect_task else None
+        _orphan = "  <<<< ORPHAN: wiping a DIFFERENT live task!" if (_cur is not None and _cur != _me) else ""
+        # Dung Log.debug("{}", msg) da build san: pymodbus build_msg do hint :hex bang arg[0],
+        # neu truyen thang chuoi RONG "" se IndexError -> tranh bang cach build san 1 chuoi.
         Log.debug(
-            "TASKDBG do_reconnect EXIT task={} reconnect_task_ref={}{} -> set None (line486) comm={}",
-            _me, _cur,
-            "  <<<< ORPHAN: wiping a DIFFERENT live task!" if (_cur is not None and _cur != _me) else "",
-            self.comm_params.comm_name,
+            "{}",
+            f"TASKDBG do_reconnect EXIT task={_me} reconnect_task_ref={_cur}{_orphan} "
+            f"-> set None (line486) comm={self.comm_params.comm_name}",
         )
         self.reconnect_task = None
 
