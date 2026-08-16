@@ -65,7 +65,13 @@ class ModbusBaseClient(ModbusClientMixin[Awaitable[ModbusResponse]], ModbusProto
             self,
             CommParams(
                 comm_type=kwargs.get("CommType"),
-                comm_name="comm",
+                # comm_name = port (serial) hoac host:port (tcp) de moi client co ten rieng,
+                # nho do log pymodbus phan biet duoc tung device (vd /dev/ttyCom0).
+                comm_name=(
+                    f'{kwargs.get("host")}:{kwargs.get("port")}'
+                    if kwargs.get("host")
+                    else str(kwargs.get("port") or "comm")
+                ),
                 source_address=kwargs.get("source_address", None),
                 reconnect_delay=reconnect_delay,
                 reconnect_delay_max=reconnect_delay_max,

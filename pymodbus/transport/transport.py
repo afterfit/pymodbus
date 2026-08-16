@@ -342,7 +342,8 @@ class ModbusProtocol(asyncio.BaseProtocol):
             if not data:
                 return
         Log.debug(
-            "recv: {} old_data: {} addr={}",
+            "comm={} recv: {} old_data: {} addr={}",
+            self.comm_params.comm_name,
             data,
             ":hex",
             self.recv_buffer,
@@ -398,7 +399,7 @@ class ModbusProtocol(asyncio.BaseProtocol):
         if not self.transport:
             Log.error("Cancel send, because not connected!")
             return
-        Log.debug("send: {}", data, ":hex")
+        Log.debug("comm={} send: {}", self.comm_params.comm_name, data, ":hex")
         if self.comm_params.handle_local_echo:
             self.sent_buffer += data
         if self.comm_params.comm_type == CommType.UDP:
