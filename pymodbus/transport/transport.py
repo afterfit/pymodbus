@@ -431,12 +431,19 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
             self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # DAY9 REPRO (hardcoded - branch debug, KHONG MERGE): tai lan cancel dau tien cua
-            # client SERIAL (= CL2 sau bao) -> KHONG cancel R1 -> R1 song tiep => 2 do_reconnect
-            # (1 giu port + 1 storm) = tai hien zombie ngay 9. Bo dong `if` nay de tra ve chuan.
+            # DAY9 faithful (branch debug, KHONG MERGE): tai lan cancel dau tien cua client SERIAL
+            # (= CL2 sau bao) KHONG cancel R1 truc tiep. Thay vao do ARM co _day9_arm theo comm_name:
+            # do_reconnect nao cua client nay MO duoc port dau tien se TU raise CancelledError NGAY
+            # sau khi mo (mid-open, trong create_serial_connection) -> connection_made van chay =>
+            # self.transport set = PHANTOM "connect thanh cong DU BI cancel" giu port; task con lai
+            # storm mai = zombie ngay 9. Faithful hon skip-cancel (R1 co bi cancel THAT, dung luc
+            # mid-open nhu ngay 9 that). KHONG dung reached.wait() vi __close chay TREN event loop ->
+            # block loop -> opener khong the chay -> deadlock. Bo dong `if` nay de tra ve chuan.
             if self.comm_params.comm_type == CommType.SERIAL and self._cancel_n == 1:
+                import pymodbus.transport.serialtransport as _st
+                _st._day9_arm[0] = self.comm_params.comm_name
                 Log.debug(
-                    "TASKDBG DAY9 cancel#{} comm={} -> KHONG cancel R1 (song tiep de storm)",
+                    "TASKDBG DAY9 cancel#{} comm={} -> ARM phantom (KHONG cancel R1; opener tu cancel mid-open)",
                     self._cancel_n, self.comm_params.comm_name,
                 )
             else:
@@ -506,6 +513,10 @@ class ModbusProtocol(asyncio.BaseProtocol):
                     _me,
                 )
                 await asyncio.sleep(self.reconnect_delay_current)
+                Log.debug(
+                    "TASKDBG do_reconnect WOKE task={} sau sleep {}ms -> goi connect() comm={}",
+                    _me, self.reconnect_delay_current * 1000, self.comm_params.comm_name,
+                )
                 if await self.connect():
                     break
                 self.reconnect_delay_current = min(

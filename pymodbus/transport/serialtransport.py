@@ -12,6 +12,11 @@ with contextlib.suppress(ImportError):
 from pymodbus.logging import Log
 
 
+# DAY9 faithful repro (branch debug, KHONG MERGE): [comm_name] khi duoc ARM boi
+# ModbusProtocol.__close tai CL2 (sau bao); [None] = disarmed. Xem create_serial_connection.
+_day9_arm: list = [None]
+
+
 
 class SerialTransport(asyncio.Transport):
     """An asyncio serial transport."""
@@ -176,4 +181,22 @@ async def create_serial_connection(
     # transport = SerialTransport(loop, protocol, *args, **kwargs)
     transport = SerialTransport(loop, protocol, rs485_settings, *args, **kwargs)
     loop.call_soon(transport.setup)
+    # DAY9 faithful repro (branch debug, KHONG MERGE): neu client nay dang duoc ARM (CL2 sau bao)
+    # va day la task do_reconnect -> vua MO duoc port xong thi TU raise CancelledError NGAY (mid-open).
+    # setup() da duoc call_soon o tren, va setup lai call_soon(connection_made) => connection_made
+    # VAN chay 2 tick sau du task nay da bi huy => self.transport duoc set = PHANTOM "connect thanh
+    # cong DU BI cancel" giu port. Task do_reconnect con lai storm mai = tai hien zombie ngay 9.
+    if _day9_arm[0] is not None and _day9_arm[0] == protocol.comm_params.comm_name:
+        # LUU Y: current_task() o day la TASK-CON cua asyncio.wait_for (ten "Task-N"),
+        # KHONG phai task do_reconnect ("transport reconnect") -> KHONG check ten task.
+        # comm_name da du de nham dung client multimeter (khac monitoring dung chung port).
+        _day9_arm[0] = None
+        _t = asyncio.current_task()
+        Log.debug(
+            "TASKDBG DAY9 phantom: comm={} innertask={} vua MO port fd={} -> raise CancelledError "
+            "MID-OPEN. Day la task-con cua wait_for; connection_made (da call_soon qua setup) van "
+            "chay => self.transport set = phantom giu port; do_reconnect chu chet o await connect().",
+            protocol.comm_params.comm_name, (id(_t) & 0xFFFF) if _t else None, transport.sync_serial.fileno(),
+        )
+        raise asyncio.CancelledError
     return transport, protocol
