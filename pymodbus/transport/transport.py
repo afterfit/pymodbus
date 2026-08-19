@@ -431,11 +431,6 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 "TASKDBG __close CANCEL reconnect_task={} (line417) comm={}",
                 id(self.reconnect_task) & 0xFFFF, self.comm_params.comm_name,
             )
-            self._cancel_n = getattr(self, "_cancel_n", 0) + 1
-            # pattern1 = ngay TU PHUC HOI (branch debug, KHONG MERGE). Cancel reconnect_task (= R1:
-            # task do_reconnect dang chay khi close nay xay ra) binh thuong -> R1 chet sach -> R2
-            # (task do_reconnect ma connection_lost spawn ngay sau) chiem lai port -> phuc hoi.
-            # Khac pattern2 (zombie) DUY NHAT o cho nay: pattern2 arm phantom thay vi cancel that.
             self.reconnect_task.cancel()
             self.reconnect_task = None
             self.reconnect_delay_current = 0.0

@@ -12,13 +12,6 @@ with contextlib.suppress(ImportError):
 from pymodbus.logging import Log
 
 
-# pattern2 repro (branch debug, KHONG MERGE).
-# [comm_name] = client can tao phantom; [None] = tat.
-# ModbusProtocol.__close bat cai nay; create_serial_connection doc no.
-_pattern2_arm: list = [None]
-
-
-
 class SerialTransport(asyncio.Transport):
     """An asyncio serial transport."""
 
@@ -182,20 +175,4 @@ async def create_serial_connection(
     # transport = SerialTransport(loop, protocol, *args, **kwargs)
     transport = SerialTransport(loop, protocol, rs485_settings, *args, **kwargs)
     loop.call_soon(transport.setup)
-    # pattern2 repro: neu client nay dang duoc bat trong _pattern2_arm, task do_reconnect vua mo
-    # duoc port se raise CancelledError ngay tai day. Port da mo va setup() da duoc call_soon
-    # (setup lai call_soon connection_made), nen connection_made van chay o tick sau va set
-    # self.transport -> transport song nhu phantom giu port, con task do_reconnect thi chet. Mot
-    # task do_reconnect khac se quay vong storm mai vi port bi phantom giu.
-    # Nham dung client bang comm_name: current_task() o day la task-con cua asyncio.wait_for
-    # (connect() goi wait_for(create_serial_connection)), khong phai task do_reconnect.
-    if _pattern2_arm[0] is not None and _pattern2_arm[0] == protocol.comm_params.comm_name:
-        _pattern2_arm[0] = None
-        _t = asyncio.current_task()
-        Log.debug(
-            "TASKDBG PATTERN2 phantom: comm={} innertask={} mo port fd={} -> raise CancelledError; "
-            "connection_made van chay o tick sau => self.transport = phantom giu port",
-            protocol.comm_params.comm_name, (id(_t) & 0xFFFF) if _t else None, transport.sync_serial.fileno(),
-        )
-        raise asyncio.CancelledError
     return transport, protocol
