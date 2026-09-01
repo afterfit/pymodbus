@@ -4,12 +4,16 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import time
 
 
 with contextlib.suppress(ImportError):
     import serial
 
 from pymodbus.logging import Log
+
+# debug: measure cooldown between CLOSE (port released) and next OPEN
+_last_close_ts: float = 0.0
 
 
 class SerialTransport(asyncio.Transport):
@@ -29,7 +33,8 @@ class SerialTransport(asyncio.Transport):
         self._poll_wait_time = 0.0005
         self.sync_serial.timeout = 0
         self.sync_serial.write_timeout = 0
-        Log.debug("TASKDBG SerialTransport OPEN id={} fd={}", id(self) & 0xFFFF, self.sync_serial.fileno())
+        _since = (time.monotonic() - _last_close_ts) * 1000 if _last_close_ts else -1.0
+        Log.debug("TASKDBG SerialTransport OPEN id={} fd={} (since last CLOSE {:.1f}ms)", id(self) & 0xFFFF, self.sync_serial.fileno(), _since)
     
     def _serial_for_args(self, rs485_settings, *args, **kwargs) -> serial.Serial:
         sync_serial: serial.Serial
@@ -54,7 +59,8 @@ class SerialTransport(asyncio.Transport):
         """Close the transport gracefully."""
         if not self.sync_serial:
             return
-        Log.debug("TASKDBG SerialTransport CLOSE id={} fd={}", id(self) & 0xFFFF, self.sync_serial.fileno())
+        _fd = self.sync_serial.fileno()
+        Log.debug("TASKDBG SerialTransport CLOSE id={} fd={}", id(self) & 0xFFFF, _fd)
         self.flush()
         if self.poll_task:
             self.poll_task.cancel()
@@ -63,6 +69,9 @@ class SerialTransport(asyncio.Transport):
             self.async_loop.remove_reader(self.sync_serial.fileno())
         self.sync_serial.close()
         self.sync_serial = None  # type: ignore[assignment]
+        global _last_close_ts
+        _last_close_ts = time.monotonic()
+        Log.debug("TASKDBG SerialTransport CLOSED fd={} released t={:.3f}", _fd, _last_close_ts)
         if exc:
             with contextlib.suppress(Exception):
                 self.intern_protocol.connection_lost(exc)

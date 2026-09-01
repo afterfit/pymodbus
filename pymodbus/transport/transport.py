@@ -434,6 +434,10 @@ class ModbusProtocol(asyncio.BaseProtocol):
             self.reconnect_task.cancel()
             self.reconnect_task = None
             self.reconnect_delay_current = 0.0
+            Log.debug(
+                "TASKDBG __close reset reconnect_delay_current=0.0 (next retry immediate) comm={}",
+                self.comm_params.comm_name,
+            )
         if self.listener:
             self.listener.active_connections.pop(self.unique_id)
 
