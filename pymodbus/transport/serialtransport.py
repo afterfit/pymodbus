@@ -53,6 +53,7 @@ class SerialTransport(asyncio.Transport):
             self.poll_task.set_name("SerialTransport poll")
         else:
             self.async_loop.add_reader(self.sync_serial.fileno(), self.intern_read_ready)
+            Log.debug("TASKDBG add_reader fd={}", self.sync_serial.fileno())
         self.async_loop.call_soon(self.intern_protocol.connection_made, self)
 
     def close(self, exc: Exception | None = None) -> None:
@@ -66,6 +67,7 @@ class SerialTransport(asyncio.Transport):
             self.poll_task.cancel()
             self.poll_task = None
         else:
+            Log.debug("TASKDBG remove_reader fd={}", self.sync_serial.fileno())
             self.async_loop.remove_reader(self.sync_serial.fileno())
         self.sync_serial.close()
         self.sync_serial = None  # type: ignore[assignment]
@@ -146,8 +148,11 @@ class SerialTransport(asyncio.Transport):
         """Test if there are data waiting."""
         try:
             if data := self.sync_serial.read(1024):
+                Log.debug("TASKDBG read_ready fd={} +{}B", self.sync_serial.fileno(), len(data))
                 self.intern_protocol.data_received(data)  # type: ignore[attr-defined]
         except serial.SerialException as exc:
+            _fd = self.sync_serial.fileno() if self.sync_serial else -1
+            Log.debug("TASKDBG read_ready fd={} SerialException {} -> close", _fd, exc)
             self.close(exc=exc)
 
     def intern_write_ready(self) -> None:
