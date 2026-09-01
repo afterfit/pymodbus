@@ -242,7 +242,9 @@ class ModbusProtocol(asyncio.BaseProtocol):
 
     async def connect(self) -> bool:
         """Handle generic connect and call on to specific transport connect."""
-        Log.debug("Connecting {}", self.comm_params.comm_name)
+        _t = asyncio.current_task()
+        _me = (id(_t) & 0xFFFF) if _t else None
+        Log.debug("Connecting {} [task={}]", self.comm_params.comm_name, _me)
         self.is_closing = False
         try:
             self.transport, _protocol = await asyncio.wait_for(
@@ -250,7 +252,7 @@ class ModbusProtocol(asyncio.BaseProtocol):
                 timeout=self.comm_params.timeout_connect,
             )
         except (asyncio.TimeoutError, OSError) as exc:  # pylint: disable=overlapping-except
-            Log.warning("Failed to connect {}", exc)
+            Log.warning("Failed to connect {} [task={}]", exc, _me)
             return False
         return bool(self.transport)
 
